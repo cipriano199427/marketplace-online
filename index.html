@@ -229,6 +229,8 @@
               <button type="button" class="period-btn" data-days="7">7 dias</button>
               <button type="button" class="period-btn active" data-days="15">15 dias</button>
               <button type="button" class="period-btn" data-days="30">30 dias</button>
+              <button type="button" class="period-btn" data-days="prevmonth">Mês passado</button>
+              <button type="button" class="period-btn" data-days="thismonth">Esse mês</button>
               <button type="button" class="period-btn" data-days="custom">Personalizado</button>
             </div>
             <div id="customPeriod" class="custom-period">
@@ -276,7 +278,7 @@
         <p class="footnote">O Business Report da Amazon é consolidado e não traz a data de cada pedido. Ao importar a Amazon, o sistema grava o intervalo selecionado em <strong>Data inicial</strong> e <strong>Data final</strong>. No dashboard, a Amazon é incluída quando o filtro corresponde exatamente a esse período.</p>
       </details>
       <details><summary>Como sai o pedido sugerido?</summary>
-        <p class="footnote"><code>média diária = total líquido vendido / dias selecionados</code> e é exibida arredondada para um número inteiro. O painel abre por padrão nos <strong>últimos 15 dias disponíveis</strong>, com atalhos para 7, 15, 30 dias ou período personalizado. A <strong>sugestão de compra</strong> é sempre 15% maior que o total considerado no período escolhido: <code>total considerado × 1,15</code>. O estoque, quando informado, aparece apenas como referência e não altera a sugestão de compra.</p>
+        <p class="footnote"><code>média diária = total líquido vendido / dias selecionados</code> e é exibida arredondada para um número inteiro. O painel abre por padrão nos <strong>últimos 15 dias disponíveis</strong>, com atalhos para 7, 15, 30 dias, mês passado, esse mês ou período personalizado. A <strong>sugestão de compra</strong> é sempre 15% maior que o total considerado no período escolhido: <code>total considerado × 1,15</code>. O estoque, quando informado, aparece apenas como referência e não altera a sugestão de compra.</p>
       </details>
       <details><summary>E os kits?</summary>
         <p class="footnote">Neste sistema, kits continuam sendo tratados pelo SKU do kit. Para transformar vendas de kits em componentes individuais, será necessária uma tabela de composição: SKU do kit → SKU componente → quantidade.</p>
@@ -959,6 +961,26 @@
   function setCustomDashboardPeriod(){
     setPeriodButtonActive('custom');
   }
+  function monthBoundsFromAnchor(offsetMonths=0){
+    const anchor=parseDbDate(dashboardAvailableMax) || new Date();
+    const year=anchor.getFullYear();
+    const month=anchor.getMonth()+Number(offsetMonths||0);
+    const first=new Date(year,month,1);
+    const last=new Date(year,month+1,0);
+    return {start:isoDate(first),end:isoDate(last)};
+  }
+  function applyMonthDashboardPeriod(which,refresh=true){
+    const isPrev=which==='prevmonth';
+    const bounds=monthBoundsFromAnchor(isPrev?-1:0);
+    let start=bounds.start;
+    let end=isPrev ? bounds.end : (dashboardAvailableMax || isoDate(new Date()));
+    if(dashboardAvailableMin && start<dashboardAvailableMin) start=dashboardAvailableMin;
+    if(dashboardAvailableMax && end>dashboardAvailableMax) end=dashboardAvailableMax;
+    $('dashboardStartDate').value=start;
+    $('dashboardEndDate').value=end;
+    setPeriodButtonActive(which);
+    if(refresh) refreshDashboard(true);
+  }
 
   async function loadAvailableRange(setDefaults=true){
     const {data,error}=await db.from('imports').select('period_start,period_end').order('period_start',{ascending:true});
@@ -1083,6 +1105,7 @@
   document.querySelectorAll('.period-btn').forEach(btn=>btn.addEventListener('click',()=>{
     const mode=btn.dataset.days;
     if(mode==='custom'){ setCustomDashboardPeriod(); return; }
+    if(mode==='prevmonth'||mode==='thismonth'){ applyMonthDashboardPeriod(mode,true); return; }
     applyQuickDashboardPeriod(Number(mode),true);
   }));
   $('dashboardStartDate').addEventListener('change',()=>{ setCustomDashboardPeriod(); refreshDashboard(true); });
