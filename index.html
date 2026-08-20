@@ -337,7 +337,7 @@
 
 
   const PT_MONTHS = { janeiro:1, fevereiro:2, marco:3, abril:4, maio:5, junho:6, julho:7, agosto:8, setembro:9, outubro:10, novembro:11, dezembro:12 };
-  let appState = { summary: [], pending: [], base: [], metrics: null, stock: null, hasStock: false, catalog: new Map(), loadedSearch: '' };
+  let appState = { summary: [], pending: [], base: [], metrics: null, stock: null, hasStock: false, catalog: new Map(), catalogByVariation: new Map(), loadedSearch: '' };
   let dashboardAvailableMin = null;
   let dashboardAvailableMax = null;
   let dashboardPeriodMode = '15';
@@ -889,12 +889,66 @@
         throw error;
       }
       const chunk=data||[];
-      for(const r of chunk) map.set(normSku(r.sku),{product_name:r.product_name??'',variation_name:r.variation_name??''});
+      for(const r of chunk){ const sku=normSku(r.sku); map.set(sku,{sku,product_name:r.product_name??'',variation_name:r.variation_name??''}); }
       if(chunk.length<pageSize) break;
       from+=pageSize;
       if(from>1000000) throw new Error('O cadastro de produtos excedeu 1.000.000 de registros.');
     }
     return map;
+  }
+  function catalogMatchProductText(value) {
+    let s=normText(value);
+    if(!s) return '';
+    s=s.replace(/\([^)]*\)/g,' ')
+      .replace(/\b[a-z]{1,3}\d{1,4}\b/gi,' ')
+      .replace(/\b\d+(?:[.,]\d+)?\s*(?:ml|l|g|kg|mg|oz|cm|mm)\b/gi,' ')
+      .replace(/\b(?:com|para|de|da|do|das|dos|e|ou|a|o|um|uma|the)\b/g,' ')
+      .replace(/[^a-z0-9]+/g,' ')
+      .replace(/\s+/g,' ').trim();
+    return s;
+  }
+  function catalogProductScore(a,b) {
+    const aa=catalogMatchProductText(a), bb=catalogMatchProductText(b);
+    if(!aa || !bb) return 0;
+    const A=new Set(aa.split(' ').filter(x=>x.length>1));
+    const B=new Set(bb.split(' ').filter(x=>x.length>1));
+    if(!A.size || !B.size) return 0;
+    let inter=0; for(const x of A) if(B.has(x)) inter++;
+    const minSize=Math.min(A.size,B.size);
+    if(inter < Math.min(3,minSize)) return 0;
+    const overlap=inter/minSize;
+    const union=A.size+B.size-inter;
+    const jaccard=union?inter/union:0;
+    let score=overlap*0.72+jaccard*0.28;
+    if(aa.includes(bb)||bb.includes(aa)) score=Math.min(1,score+0.12);
+    return score;
+  }
+  function buildCatalogVariationIndex(catalog) {
+    const idx=new Map();
+    for(const [sku,c] of catalog){
+      const v=normText(cleanVariationLabel(c.variation_name||''));
+      if(!v || isGenericVariation(v)) continue;
+      if(!idx.has(v)) idx.set(v,[]);
+      idx.get(v).push({sku,product_name:c.product_name||'',variation_name:c.variation_name||''});
+    }
+    return idx;
+  }
+  function findCatalogAliasMatch(product,variation) {
+    const v=normText(cleanVariationLabel(variation||''));
+    if(!v || isGenericVariation(v)) return null;
+    const candidates=appState.catalogByVariation.get(v)||[];
+    if(!candidates.length) return null;
+    let best=null, second=0;
+    for(const c of candidates){
+      const score=catalogProductScore(product,c.product_name);
+      if(!best || score>best.score){ second=best?best.score:second; best={...c,score}; }
+      else if(score>second) second=score;
+    }
+    if(!best) return null;
+    // Exigimos semelhanca forte. Se houver outro candidato quase empatado, nao arriscamos.
+    if(best.score<0.68) return null;
+    if(second>=0.60 && best.score-second<0.10) return null;
+    return best;
   }
   function applyProductCatalog(summary,catalog){
     for(const r of summary){
@@ -913,21 +967,30 @@
       const automaticProductRaw=inferredFromTitle ? removeInferredVariationFromProduct(r.ProdutoOrigem,inferred) : r.ProdutoOrigem;
       const automaticProduct=canonicalProductName(automaticProductRaw);
       const c=catalog.get(normSku(r.SKU));
+      const aliasMatch=!c ? findCatalogAliasMatch(r.ProdutoOrigem||automaticProduct,automaticVariation) : null;
       if(c){
-        // O cadastro mestre continua soberano quando existe uma variacao preenchida.
-        // Se a variacao do cadastro estiver vazia, usamos a melhor informacao da origem
-        // em vez de apagar a variacao exibida.
+        // SKU encontrado diretamente no cadastro oficial/manual: ele e soberano.
         r.Produto=c.product_name||automaticProduct||r.Produto;
         const manualVariation=String(c.variation_name??'').trim();
         r.Variacao=manualVariation || automaticVariation;
         r.NomePadronizado=true;
+        r.CatalogoOficial=true;
         r.VariacaoNormalizada=!manualVariation && r.Variacao!==originalVariation;
+      } else if(aliasMatch){
+        // Alguns marketplaces usam outro SKU para o mesmo item (ex.: PARIS-VARIACAO-*).
+        // Quando produto + variacao batem com alta confianca no cadastro, usamos os nomes oficiais.
+        r.Produto=aliasMatch.product_name||automaticProduct||r.Produto;
+        r.Variacao=aliasMatch.variation_name||automaticVariation;
+        r.NomePadronizado=true;
+        r.CatalogoOficial=true;
+        r.SKU_Catalogo=aliasMatch.sku;
+        r.VariacaoNormalizada=true;
       } else {
-        // Sem cadastro manual, removemos rotulos genericos e recuperamos variacoes
-        // que vieram embutidas no fim do nome do produto.
+        // Sem correspondencia segura no cadastro, preservamos a normalizacao conservadora.
         r.Produto=automaticProduct||r.Produto;
         r.Variacao=automaticVariation;
         r.NomePadronizado=false;
+        r.CatalogoOficial=false;
         r.VariacaoNormalizada=r.Variacao!==originalVariation;
       }
     }
@@ -953,7 +1016,8 @@
     if(!sku||!product){ setStatus('Informe um nome padrão para o produto.','warn'); return; }
     const {error}=await db.from('product_catalog').upsert({sku,product_name:product,variation_name:variation,updated_by:currentUser.id,updated_at:new Date().toISOString()},{onConflict:'sku'});
     if(error) throw error;
-    appState.catalog.set(sku,{product_name:product,variation_name:variation});
+    appState.catalog.set(sku,{sku,product_name:product,variation_name:variation});
+    appState.catalogByVariation=buildCatalogVariationIndex(appState.catalog);
     const r=appState.summary.find(x=>x.SKU===sku);
     if(r){ r.Produto=product; r.Variacao=variation; r.NomePadronizado=true; }
     closeProductEditor(); renderSummary();
@@ -966,6 +1030,7 @@
     const {error}=await db.from('product_catalog').delete().eq('sku',sku);
     if(error) throw error;
     appState.catalog.delete(sku);
+    appState.catalogByVariation=buildCatalogVariationIndex(appState.catalog);
     closeProductEditor();
     await refreshDashboard(false);
     setStatus(`O SKU ${sku} voltou a usar o nome vindo dos marketplaces.`,'ok');
@@ -1348,6 +1413,7 @@
         TikTok_Liquido:Number(r.tiktok_liquido||0), Mercado_Livre_Liquido:Number(r.mercado_livre_liquido||0), Shopee_Liquido:Number(r.shopee_liquido||0), SHEIN_Liquido:Number(r.shein_liquido||0), Amazon_Pedidas:Number(r.amazon_pedidas||0), Droga_Raia_Liquido:Number(r.droga_raia_liquido||0), Magazine_Luiza_Liquido:Number(r.magazine_luiza_liquido||0), Beleza_na_Web_Liquido:Number(r.beleza_na_web_liquido||0), Total_Liquido:Number(r.total_considerado||0), Media_Dia:Number(r.media_dia||0), Estoque:null, Pedido_Sugerido:Number(r.pedido_sugerido||0), SKU_Pendente:!!r.sku_pendente
       }));
       appState.catalog=catalog;
+      appState.catalogByVariation=buildCatalogVariationIndex(catalog);
       applyProductCatalog(summary,catalog);
       applyStock(summary,stock);
       const pending=(pend||[]).map(r=>({Marketplace:r.marketplace,Identificador:r.identificador,Produto:r.produto||'',Variacao:cleanVariationLabel(r.variacao||''),VariacaoOrigem:r.variacao||'',Unidades_vendidas:Number(r.unidades_vendidas||0),SKU_sugerido:'',Motivo:'SKU ausente no arquivo de origem'}));
