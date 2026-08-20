@@ -303,6 +303,7 @@
   let dashboardAvailableMin = null;
   let dashboardAvailableMax = null;
   let dashboardPeriodMode = '15';
+  let dashboardDefaultsUserId = null;
 
   const $ = id => document.getElementById(id);
   const nf0 = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
@@ -1049,13 +1050,15 @@
     currentUser=session?.user||null;
     $('authShell').style.display=currentUser?'none':'flex';
     $('appShell').style.display=currentUser?'block':'none';
-    if(!currentUser)return;
+    if(!currentUser){ dashboardDefaultsUserId=null; return; }
     const admin=isAdminUser();
     $('userEmail').textContent=(currentUser.email||'') + (admin ? ' • Administrador' : '');
     $('adminImportCard').style.display=admin?'block':'none';
     $('adminHistoryCard').style.display=admin?'block':'none';
     try{
-      await loadAvailableRange(true);
+      const shouldSetDashboardDefault = dashboardDefaultsUserId !== currentUser.id;
+      if(shouldSetDashboardDefault) dashboardDefaultsUserId = currentUser.id;
+      await loadAvailableRange(shouldSetDashboardDefault);
       if(admin) await loadImportHistory();
       await refreshDashboard(false);
     }
