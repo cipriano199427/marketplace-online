@@ -1141,22 +1141,30 @@
   async function fetchSummaryRows(start,end,searchText=''){
     const args={p_start:start,p_end:end};
 
-    // Caminho principal: uma unica linha JSON com TODOS os SKUs do periodo.
-    // Assim nao existe corte de 1.000 linhas antes da busca local.
-    try{
-      const result=await db.rpc('get_sales_summary_payload',args);
-      if(!result.error){
-        const first=Array.isArray(result.data)?result.data[0]:result.data;
-        let payload=first && typeof first==='object' && !Array.isArray(first) && 'payload' in first ? first.payload : first;
-        if(typeof payload==='string'){ try{ payload=JSON.parse(payload); }catch(_){} }
-        if(Array.isArray(payload)) return payload;
-      }else{
-        console.warn('[Dashboard] payload RPC indisponivel:',result.error.message||result.error);
-      }
-    }catch(e){ console.warn('[Dashboard] payload RPC falhou:',e?.message||e); }
-
-    // Compatibilidade: pagina a funcao tabular ate terminar.
-    return await fetchAllRpcRows('get_sales_summary',args);
+    // Consulta obrigatoriamente completa: o banco agrega diretamente sales_items
+    // e devolve TODOS os SKUs do periodo em uma unica linha JSON. Nao usamos mais
+    // fallback para a funcao tabular, porque esse fallback podia devolver um resumo
+    // aparentemente valido, porem truncado, em periodos com muitos SKUs.
+    const {data,error}=await db.rpc('get_sales_summary_payload_v3',args);
+    if(error){
+      throw new Error('Consulta completa do resumo nao instalada no Supabase. Execute o arquivo fix_resumo_periodo_v3.sql no SQL Editor e atualize a pagina. Detalhe: '+(error.message||error));
+    }
+    const first=Array.isArray(data)?data[0]:data;
+    if(!first || typeof first!=='object'){
+      throw new Error('O Supabase retornou um formato inesperado para o resumo completo.');
+    }
+    let payload=first.payload;
+    if(typeof payload==='string'){
+      try{ payload=JSON.parse(payload); }catch(_){ throw new Error('Nao foi possivel interpretar o resumo retornado pelo Supabase.'); }
+    }
+    if(!Array.isArray(payload)){
+      throw new Error('O resumo completo nao retornou uma lista de SKUs valida.');
+    }
+    const expected=Number(first.sku_count ?? payload.length);
+    if(Number.isFinite(expected) && expected!==payload.length){
+      throw new Error(`Resumo incompleto: o banco informou ${expected} SKUs, mas o navegador recebeu ${payload.length}.`);
+    }
+    return payload;
   }
 
   async function refreshDashboard(showStatus=true){
