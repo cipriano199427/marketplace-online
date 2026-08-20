@@ -1134,11 +1134,13 @@
     if(start>end){ setStatus('A Data inicial não pode ser maior que a Data final.','warn'); return; }
     try{
       if(showStatus)setStatus('Atualizando dashboard salvo...','info');
-      const [sum,pend,catalog]=await Promise.all([
-        fetchAllRpcRows('get_sales_summary',{p_start:start,p_end:end}),
+      const [summaryJson,pend,catalog]=await Promise.all([
+        db.rpc('get_sales_summary_json',{p_start:start,p_end:end}),
         fetchAllRpcRows('get_pending_skus',{p_start:start,p_end:end}),
         loadProductCatalog()
       ]);
+      if(summaryJson.error) throw summaryJson.error;
+      const sum=Array.isArray(summaryJson.data)?summaryJson.data:[];
       let stock=null; const sf=$('stockFile').files[0]; if(sf) stock=await readStock(sf);
       const summary=(sum||[]).map(r=>({
         SKU:r.sku, Produto:r.produto||'', Variacao:r.variacao||'',
@@ -1151,6 +1153,7 @@
       const sDate=parseDbDate(start), eDate=parseDbDate(end), days=Math.floor((eDate-sDate)/86400000)+1;
       appState.summary=summary; appState.pending=pending; appState.stock=stock; appState.hasStock=stock instanceof Map;
       appState.metrics={start:sDate,end:eDate,days,rows:summary.length,distinctSkus:summary.filter(r=>!r.SKU_Pendente).length,pendingUnits:pending.reduce((s,r)=>s+r.Unidades_vendidas,0),netUnits:summary.reduce((s,r)=>s+r.Total_Liquido,0)};
+      console.info('[Dashboard] periodo',start,'a',end,'SKUs carregados:',summary.length);
       renderAll();
       $('summaryCaption').textContent=`${fmtDate(sDate)} a ${fmtDate(eDate)} • dados salvos no Supabase`;
       if(showStatus)setStatus(`Dashboard atualizado: ${nf0.format(appState.metrics.netUnits)} unidades consideradas e ${nf0.format(summary.reduce((s,r)=>s+r.Pedido_Sugerido,0))} sugeridas para compra.`,'ok');
