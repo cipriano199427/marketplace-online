@@ -96,3 +96,7 @@ O sistema considera `luzmakeupadm@gmail.com` como a única conta administradora.
 - O bloqueio é aplicado também por políticas RLS no Supabase, não apenas na interface.
 
 Se o `database.sql` já foi executado anteriormente, execute-o novamente no SQL Editor para aplicar as novas políticas de administrador. O arquivo é idempotente para as políticas configuradas aqui.
+
+## Filtro rápido do dashboard
+
+O resumo por SKU abre por padrão nos **últimos 15 dias disponíveis**. Todos os usuários autenticados podem alternar entre **7 dias**, **15 dias**, **30 dias** ou **Personalizado**. O filtro recalcula os KPIs, a tabela, a média diária, as pendências e a sugestão de compra.
