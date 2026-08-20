@@ -70,6 +70,15 @@
     .section-head h2 { margin: 0; }
     .filters { display: flex; gap: 8px; flex-wrap: wrap; }
     .filters input { min-width: 260px; }
+    .dashboard-tools { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap; width:100%; }
+    .period-filter { display:flex; flex-direction:column; gap:7px; }
+    .period-filter-label { color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+    .period-presets { display:flex; gap:7px; flex-wrap:wrap; }
+    button.period-btn { padding:9px 13px; background:#eef3f8; color:var(--primary); border:1px solid #d5e0eb; }
+    button.period-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+    .custom-period { display:none; grid-template-columns:repeat(2,minmax(150px,1fr)); gap:8px; margin-top:2px; }
+    .custom-period.show { display:grid; }
+    .custom-period label span { margin-bottom:5px; }
     .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 14px; max-height: 620px; background: #fff; }
     table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
     th { position: sticky; top: 0; z-index: 2; background: #eff4f8; color: #344054; text-align: left; padding: 11px 12px; border-bottom: 1px solid #d6e0e9; white-space: nowrap; }
@@ -94,6 +103,8 @@
       .shell { padding: 16px; }
       .grid-3, .grid-4, .grid-5, .controls { grid-template-columns: 1fr; }
       .filters input { min-width: 0; width: 100%; }
+      .dashboard-tools { align-items:stretch; }
+      .custom-period { grid-template-columns:1fr; }
     }
 
     .auth-shell { min-height: 100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
@@ -211,10 +222,25 @@
     <div class="card section">
       <div class="section-head">
         <div><h2>3. Resumo por SKU</h2><div id="summaryCaption" class="footnote" style="margin-top:4px"></div></div>
-        <div class="filters">
-          <input id="searchSku" type="text" placeholder="Buscar SKU, produto ou variação..." />
-          <button id="csvBtn" type="button" class="secondary">Baixar CSV</button>
-          <button id="xlsxBtn" type="button" class="secondary">Baixar Excel</button>
+        <div class="dashboard-tools">
+          <div class="period-filter">
+            <div class="period-filter-label">Período das vendas</div>
+            <div class="period-presets">
+              <button type="button" class="period-btn" data-days="7">7 dias</button>
+              <button type="button" class="period-btn active" data-days="15">15 dias</button>
+              <button type="button" class="period-btn" data-days="30">30 dias</button>
+              <button type="button" class="period-btn" data-days="custom">Personalizado</button>
+            </div>
+            <div id="customPeriod" class="custom-period">
+              <label><span>Data inicial</span><input id="dashboardStartDate" type="date" /></label>
+              <label><span>Data final</span><input id="dashboardEndDate" type="date" /></label>
+            </div>
+          </div>
+          <div class="filters">
+            <input id="searchSku" type="text" placeholder="Buscar SKU, produto ou variação..." />
+            <button id="csvBtn" type="button" class="secondary">Baixar CSV</button>
+            <button id="xlsxBtn" type="button" class="secondary">Baixar Excel</button>
+          </div>
         </div>
       </div>
       <div id="downloadFallback" class="footnote" style="display:none;margin:8px 0 12px"></div>
@@ -251,7 +277,7 @@
         <p class="footnote">O Business Report da Amazon é consolidado e não traz a data de cada pedido. Ao importar a Amazon, o sistema grava o intervalo selecionado em <strong>Data inicial</strong> e <strong>Data final</strong>. No dashboard, a Amazon é incluída quando o filtro corresponde exatamente a esse período.</p>
       </details>
       <details><summary>Como sai o pedido sugerido?</summary>
-        <p class="footnote"><code>média diária = total líquido vendido / dias selecionados</code> e é exibida arredondada para um número inteiro. A <strong>sugestão de compra</strong> é sempre 15% maior que o total considerado no período escolhido: <code>total considerado × 1,15</code>. O estoque, quando informado, aparece apenas como referência e não altera a sugestão de compra.</p>
+        <p class="footnote"><code>média diária = total líquido vendido / dias selecionados</code> e é exibida arredondada para um número inteiro. O painel abre por padrão nos <strong>últimos 15 dias disponíveis</strong>, com atalhos para 7, 15, 30 dias ou período personalizado. A <strong>sugestão de compra</strong> é sempre 15% maior que o total considerado no período escolhido: <code>total considerado × 1,15</code>. O estoque, quando informado, aparece apenas como referência e não altera a sugestão de compra.</p>
       </details>
       <details><summary>E os kits?</summary>
         <p class="footnote">Neste sistema, kits continuam sendo tratados pelo SKU do kit. Para transformar vendas de kits em componentes individuais, será necessária uma tabela de composição: SKU do kit → SKU componente → quantidade.</p>
@@ -274,6 +300,9 @@
 
   const PT_MONTHS = { janeiro:1, fevereiro:2, marco:3, abril:4, maio:5, junho:6, julho:7, agosto:8, setembro:9, outubro:10, novembro:11, dezembro:12 };
   let appState = { summary: [], pending: [], base: [], metrics: null, stock: null, hasStock: false };
+  let dashboardAvailableMin = null;
+  let dashboardAvailableMax = null;
+  let dashboardPeriodMode = '15';
 
   const $ = id => document.getElementById(id);
   const nf0 = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
@@ -906,18 +935,55 @@
   function clearFileInputs(){ ['tiktokFile','mlFile','shopeeFiles','sheinFiles','amazonFile','raiaFiles','magaluFiles','belezaFiles','stockFile'].forEach(id=>$(id).value=''); }
   function clearAll(){ clearFileInputs(); $('searchSku').value=''; clearStatus(); }
 
+  function addDaysIso(iso, delta){
+    const d=parseDbDate(iso);
+    if(!d) return null;
+    d.setDate(d.getDate()+delta);
+    return isoDate(d);
+  }
+  function setPeriodButtonActive(mode){
+    dashboardPeriodMode=String(mode);
+    document.querySelectorAll('.period-btn').forEach(btn=>btn.classList.toggle('active',btn.dataset.days===dashboardPeriodMode));
+    $('customPeriod').classList.toggle('show',dashboardPeriodMode==='custom');
+  }
+  function applyQuickDashboardPeriod(days, refresh=true){
+    if(!days) return;
+    const end=dashboardAvailableMax || isoDate(new Date());
+    let start=addDaysIso(end,-(Number(days)-1));
+    if(dashboardAvailableMin && start<dashboardAvailableMin) start=dashboardAvailableMin;
+    $('dashboardStartDate').value=start;
+    $('dashboardEndDate').value=end;
+    setPeriodButtonActive(String(days));
+    if(refresh) refreshDashboard(true);
+  }
+  function setCustomDashboardPeriod(){
+    setPeriodButtonActive('custom');
+  }
+
   async function loadAvailableRange(setDefaults=true){
     const {data,error}=await db.from('imports').select('period_start,period_end').order('period_start',{ascending:true});
     if(error) throw error;
     let min=null,max=null;
     for(const r of data||[]){ if(r.period_start&&(!min||r.period_start<min))min=r.period_start; if(r.period_end&&(!max||r.period_end>max))max=r.period_end; }
-    if(min){ $('startDate').min=min; $('endDate').min=min; }
-    if(max){ $('startDate').max=max; $('endDate').max=max; }
-    if(setDefaults){ if(!$('startDate').value&&min)$('startDate').value=min; if(!$('endDate').value&&max)$('endDate').value=max; }
+    dashboardAvailableMin=min;
+    dashboardAvailableMax=max;
+    if(min){
+      $('startDate').min=min; $('endDate').min=min;
+      $('dashboardStartDate').min=min; $('dashboardEndDate').min=min;
+    }
+    if(max){
+      $('startDate').max=max; $('endDate').max=max;
+      $('dashboardStartDate').max=max; $('dashboardEndDate').max=max;
+    }
+    if(setDefaults){
+      if(!$('startDate').value&&min)$('startDate').value=min;
+      if(!$('endDate').value&&max)$('endDate').value=max;
+      applyQuickDashboardPeriod(15,false);
+    }
   }
   async function refreshDashboard(showStatus=true){
     if(!currentUser) return;
-    const start=$('startDate').value, end=$('endDate').value;
+    const start=$('dashboardStartDate').value, end=$('dashboardEndDate').value;
     if(!start||!end){ $('results').style.display='none'; return; }
     if(start>end){ setStatus('A Data inicial não pode ser maior que a Data final.','warn'); return; }
     try{
@@ -998,8 +1064,13 @@
 
   $('processBtn').addEventListener('click',processOnline);
   $('clearBtn').addEventListener('click',clearAll);
-  $('startDate').addEventListener('change',()=>refreshDashboard(true));
-  $('endDate').addEventListener('change',()=>refreshDashboard(true));
+  document.querySelectorAll('.period-btn').forEach(btn=>btn.addEventListener('click',()=>{
+    const mode=btn.dataset.days;
+    if(mode==='custom'){ setCustomDashboardPeriod(); return; }
+    applyQuickDashboardPeriod(Number(mode),true);
+  }));
+  $('dashboardStartDate').addEventListener('change',()=>{ setCustomDashboardPeriod(); refreshDashboard(true); });
+  $('dashboardEndDate').addEventListener('change',()=>{ setCustomDashboardPeriod(); refreshDashboard(true); });
   $('stockFile').addEventListener('change',()=>refreshDashboard(true));
   $('searchSku').addEventListener('input',renderSummary);
   $('csvBtn').addEventListener('click',async()=>{try{await exportCSV();}catch(e){console.error(e);setStatus(e?.message||String(e),'error');}});
