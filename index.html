@@ -308,9 +308,9 @@
       <div class="modal-grid">
         <label><span>SKU</span><input id="catalogSku" type="text" readonly /></label>
         <label><span>Produto padrão</span><input id="catalogProduct" type="text" placeholder="Ex.: Shampoo Haskell Cavalo Forte" /></label>
-        <label><span>Variação padrão</span><input id="catalogVariation" type="text" placeholder="Ex.: 300 ml" /></label>
+        <label><span>Variação padrão</span><input id="catalogVariation" type="text" placeholder="Ex.: 02, Nude, 300 ml" /></label>
       </div>
-      <p class="footnote">Para variações do mesmo produto, use exatamente o mesmo <strong>Produto padrão</strong> em todos os SKUs e altere somente a <strong>Variação padrão</strong>.</p>
+      <p class="footnote">Para variações do mesmo produto, use exatamente o mesmo <strong>Produto padrão</strong> em todos os SKUs e altere somente a <strong>Variação padrão</strong>. Sem cadastro manual, o sistema remove automaticamente prefixos como Tom, Cor, Tamanho e Volume.</p>
       <div class="modal-actions">
         <button id="catalogResetBtn" type="button" class="danger">Usar nome dos marketplaces</button>
         <button id="catalogCancelBtn" type="button" class="secondary">Cancelar</button>
@@ -348,6 +348,31 @@
   }
   function normText(v) { return stripAccents(v).trim().toLowerCase().replace(/\s+/g, ' '); }
   function normSku(v) { return String(v ?? '').replace(/[\t\n]/g, ' ').trim().toUpperCase().replace(/\s+/g, ' '); }
+  function cleanVariationLabel(value) {
+    let s=String(value ?? '').replace(/[\t\n]+/g,' ').replace(/\s+/g,' ').trim();
+    if(!s) return '';
+    const n=normText(s);
+    if(['-','—','sem variacao','sem variante','nao se aplica','n/a','na'].includes(n)) return '';
+    if(['padrao','default','unica','unico'].includes(n)) return 'Padrão';
+
+    // Remove apenas rotulos genericos no inicio. O valor real da variacao e preservado.
+    // Exemplos: "Tom: 02" -> "02", "Cor - Nude" -> "Nude",
+    // "Volume 300 ml" -> "300 ml".
+    const labels=[
+      'varia(?:ç|c)(?:ã|a)o','variation','variante',
+      'tom','cor','color','tamanho','size','volume','vol\.?',
+      'op(?:ç|c)(?:ã|a)o','option','modelo','model','sabor','flavor',
+      'aroma','fragr(?:â|a)ncia','fragrance'
+    ];
+    const prefix=new RegExp('^(?:'+labels.join('|')+')\\s*(?::|=|-|–|—|\\|)?\\s*','i');
+    let prev='';
+    while(s && s!==prev){ prev=s; s=s.replace(prefix,'').trim(); }
+    s=s.replace(/^[\s:;,\-–—|]+|[\s:;,\-–—|]+$/g,'').trim();
+    if(!s) return '';
+    const cleanedNorm=normText(s);
+    if(['padrao','default','unica','unico'].includes(cleanedNorm)) return 'Padrão';
+    return s;
+  }
   function asNumber(v) {
     if (v === null || v === undefined || v === '') return 0;
     if (typeof v === 'number' && Number.isFinite(v)) return v;
@@ -767,13 +792,24 @@
   }
   function applyProductCatalog(summary,catalog){
     for(const r of summary){
-      r.ProdutoOrigem=r.Produto; r.VariacaoOrigem=r.Variacao;
+      r.ProdutoOrigem=r.Produto;
+      r.VariacaoOrigem=r.Variacao;
       const c=catalog.get(normSku(r.SKU));
       if(c){
+        // O cadastro mestre e sempre soberano: o administrador decide exatamente
+        // como Produto e Variacao devem aparecer para este SKU.
         r.Produto=c.product_name||r.Produto;
-        r.Variacao=c.variation_name??'';
+        r.Variacao=String(c.variation_name??'').trim();
         r.NomePadronizado=true;
-      } else r.NomePadronizado=false;
+        r.VariacaoNormalizada=false;
+      } else {
+        // Sem cadastro manual, limpamos apenas rotulos genericos trazidos pelos
+        // marketplaces, sem tentar adivinhar o nome da cor/tamanho/tom.
+        const cleaned=cleanVariationLabel(r.Variacao);
+        r.Variacao=cleaned;
+        r.NomePadronizado=false;
+        r.VariacaoNormalizada=cleaned!==String(r.VariacaoOrigem??'').trim();
+      }
     }
   }
   function openProductEditor(sku){
@@ -1187,7 +1223,7 @@
       appState.catalog=catalog;
       applyProductCatalog(summary,catalog);
       applyStock(summary,stock);
-      const pending=(pend||[]).map(r=>({Marketplace:r.marketplace,Identificador:r.identificador,Produto:r.produto||'',Variacao:r.variacao||'',Unidades_vendidas:Number(r.unidades_vendidas||0),SKU_sugerido:'',Motivo:'SKU ausente no arquivo de origem'}));
+      const pending=(pend||[]).map(r=>({Marketplace:r.marketplace,Identificador:r.identificador,Produto:r.produto||'',Variacao:cleanVariationLabel(r.variacao||''),VariacaoOrigem:r.variacao||'',Unidades_vendidas:Number(r.unidades_vendidas||0),SKU_sugerido:'',Motivo:'SKU ausente no arquivo de origem'}));
       const sDate=parseDbDate(start), eDate=parseDbDate(end), days=Math.floor((eDate-sDate)/86400000)+1;
       appState.summary=summary; appState.pending=pending; appState.stock=stock; appState.hasStock=stock instanceof Map;
       appState.metrics={start:sDate,end:eDate,days,rows:summary.length,distinctSkus:summary.filter(r=>!r.SKU_Pendente).length,pendingUnits:pending.reduce((s,r)=>s+r.Unidades_vendidas,0),netUnits:summary.reduce((s,r)=>s+r.Total_Liquido,0)};
