@@ -248,6 +248,11 @@
           </div>
           <div class="filters">
             <input id="searchSku" type="text" placeholder="Buscar SKU, produto ou variação..." />
+            <select id="sortProducts" aria-label="Ordenar produtos">
+              <option value="sales">Mais vendidos</option>
+              <option value="az">Produto A–Z</option>
+              <option value="za">Produto Z–A</option>
+            </select>
             <button id="csvBtn" type="button" class="secondary">Baixar CSV</button>
             <button id="xlsxBtn" type="button" class="secondary">Baixar Excel</button>
           </div>
@@ -806,7 +811,12 @@
 
   function renderSummary() {
     const q=normText($('searchSku').value); const body=$('summaryTable').querySelector('tbody'); body.innerHTML='';
+    const sortMode=$('sortProducts')?.value||'sales';
     const data=appState.summary.filter(r=>!q||normText(`${r.SKU} ${r.Produto} ${r.Variacao}`).includes(q));
+    const compareText=(a,b)=>String(a||'').localeCompare(String(b||''),'pt-BR',{sensitivity:'base',numeric:true});
+    if(sortMode==='az') data.sort((a,b)=>compareText(a.Produto,b.Produto)||compareText(a.Variacao,b.Variacao)||compareText(a.SKU,b.SKU));
+    else if(sortMode==='za') data.sort((a,b)=>compareText(b.Produto,a.Produto)||compareText(b.Variacao,a.Variacao)||compareText(b.SKU,a.SKU));
+    else data.sort((a,b)=>(b.Total_Liquido||0)-(a.Total_Liquido||0)||compareText(a.SKU,b.SKU));
     const admin=isAdminUser();
     if(!data.length){ body.innerHTML=`<tr><td class="empty" colspan="${admin?17:16}">Nenhum SKU encontrado.</td></tr>`; return; }
     const frag=document.createDocumentFragment();
@@ -1215,6 +1225,7 @@
   $('dashboardEndDate').addEventListener('change',()=>{ setCustomDashboardPeriod(); refreshDashboard(true); });
   $('stockFile').addEventListener('change',()=>refreshDashboard(true));
   $('searchSku').addEventListener('input',renderSummary);
+  $('sortProducts').addEventListener('change',renderSummary);
   $('csvBtn').addEventListener('click',async()=>{try{await exportCSV();}catch(e){console.error(e);setStatus(e?.message||String(e),'error');}});
   $('xlsxBtn').addEventListener('click',async()=>{try{await exportXLSX();}catch(e){console.error(e);setStatus(e?.message||String(e),'error');}});
   $('refreshHistoryBtn').addEventListener('click',loadImportHistory);
