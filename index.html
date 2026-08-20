@@ -248,9 +248,8 @@
         <table id="summaryTable">
           <thead><tr>
             <th>SKU</th><th>Produto</th><th>Variação</th>
-            <th class="num">TikTok líquido</th><th class="num">Mercado Livre líquido</th><th class="num">Shopee líquido</th><th class="num">SHEIN líquido</th><th class="num">Amazon pedidas</th><th class="num">Droga Raia líquido</th><th class="num">Magazine Luiza líquido</th><th class="num">Beleza na Web líquido</th>
-            <th class="num">Total considerado</th><th class="num">Média/dia</th>
-            <th class="num">Estoque</th><th class="num">Sugestão de compra</th><th>SKU pendente?</th>
+            <th class="num">Total considerado</th><th class="num">Sugestão de compra</th><th class="num">Média/dia</th><th class="num">Estoque</th>
+            <th class="num">TikTok líquido</th><th class="num">Mercado Livre líquido</th><th class="num">Shopee líquido</th><th class="num">SHEIN líquido</th><th class="num">Amazon pedidas</th><th class="num">Droga Raia líquido</th><th class="num">Magazine Luiza líquido</th><th class="num">Beleza na Web líquido</th><th>SKU pendente?</th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -714,7 +713,7 @@
     const data=appState.summary.filter(r=>!q||normText(`${r.SKU} ${r.Produto} ${r.Variacao}`).includes(q));
     if(!data.length){ body.innerHTML='<tr><td class="empty" colspan="16">Nenhum SKU encontrado.</td></tr>'; return; }
     const frag=document.createDocumentFragment();
-    for(const r of data){ const tr=document.createElement('tr'); if(r.SKU_Pendente)tr.className='pending-row'; tr.innerHTML=`<td class="sku">${esc(r.SKU)}</td><td>${esc(r.Produto)}</td><td>${esc(r.Variacao||'')}</td><td class="num">${nf2.format(r.TikTok_Liquido)}</td><td class="num">${nf2.format(r.Mercado_Livre_Liquido)}</td><td class="num">${nf2.format(r.Shopee_Liquido)}</td><td class="num">${nf2.format(r.SHEIN_Liquido)}</td><td class="num">${nf2.format(r.Amazon_Pedidas)}</td><td class="num">${nf2.format(r.Droga_Raia_Liquido)}</td><td class="num">${nf2.format(r.Magazine_Luiza_Liquido)}</td><td class="num">${nf2.format(r.Beleza_na_Web_Liquido)}</td><td class="num"><strong>${nf2.format(r.Total_Liquido)}</strong></td><td class="num">${nf0.format(Math.round(r.Media_Dia))}</td><td class="num">${r.Estoque===null?'—':nf2.format(r.Estoque)}</td><td class="num"><strong>${nf0.format(r.Pedido_Sugerido)}</strong></td><td>${r.SKU_Pendente?'<span class="pill warn">SIM</span>':'<span class="pill ok">NÃO</span>'}</td>`; frag.appendChild(tr); }
+    for(const r of data){ const tr=document.createElement('tr'); if(r.SKU_Pendente)tr.className='pending-row'; tr.innerHTML=`<td class="sku">${esc(r.SKU)}</td><td>${esc(r.Produto)}</td><td>${esc(r.Variacao||'')}</td><td class="num"><strong>${nf2.format(r.Total_Liquido)}</strong></td><td class="num"><strong>${nf0.format(r.Pedido_Sugerido)}</strong></td><td class="num">${nf0.format(Math.round(r.Media_Dia))}</td><td class="num">${r.Estoque===null?'—':nf2.format(r.Estoque)}</td><td class="num">${nf2.format(r.TikTok_Liquido)}</td><td class="num">${nf2.format(r.Mercado_Livre_Liquido)}</td><td class="num">${nf2.format(r.Shopee_Liquido)}</td><td class="num">${nf2.format(r.SHEIN_Liquido)}</td><td class="num">${nf2.format(r.Amazon_Pedidas)}</td><td class="num">${nf2.format(r.Droga_Raia_Liquido)}</td><td class="num">${nf2.format(r.Magazine_Luiza_Liquido)}</td><td class="num">${nf2.format(r.Beleza_na_Web_Liquido)}</td><td>${r.SKU_Pendente?'<span class="pill warn">SIM</span>':'<span class="pill ok">NÃO</span>'}</td>`; frag.appendChild(tr); }
     body.appendChild(frag);
   }
   function renderPending() {
@@ -732,7 +731,7 @@
 
   function summaryExportRows() {
     return appState.summary.map(r=>({
-      SKU:r.SKU, Produto:r.Produto, 'Variação':r.Variacao, 'TikTok Líquido':r.TikTok_Liquido, 'Mercado Livre Líquido':r.Mercado_Livre_Liquido, 'Shopee Líquido':r.Shopee_Liquido, 'SHEIN Líquido':r.SHEIN_Liquido, 'Amazon Pedidas':r.Amazon_Pedidas, 'Droga Raia Líquido':r.Droga_Raia_Liquido, 'Magazine Luiza Líquido':r.Magazine_Luiza_Liquido, 'Beleza na Web Líquido':r.Beleza_na_Web_Liquido, 'Total Considerado':r.Total_Liquido, 'Média/dia':Math.round(r.Media_Dia), 'Estoque Atual':r.Estoque??'', 'Sugestão de Compra':r.Pedido_Sugerido??'', 'SKU pendente?':r.SKU_Pendente?'SIM':'NÃO'
+      SKU:r.SKU, Produto:r.Produto, 'Variação':r.Variacao, 'Total Considerado':r.Total_Liquido, 'Sugestão de Compra':r.Pedido_Sugerido??'', 'Média/dia':Math.round(r.Media_Dia), 'Estoque Atual':r.Estoque??'', 'TikTok Líquido':r.TikTok_Liquido, 'Mercado Livre Líquido':r.Mercado_Livre_Liquido, 'Shopee Líquido':r.Shopee_Liquido, 'SHEIN Líquido':r.SHEIN_Liquido, 'Amazon Pedidas':r.Amazon_Pedidas, 'Droga Raia Líquido':r.Droga_Raia_Liquido, 'Magazine Luiza Líquido':r.Magazine_Luiza_Liquido, 'Beleza na Web Líquido':r.Beleza_na_Web_Liquido, 'SKU pendente?':r.SKU_Pendente?'SIM':'NÃO'
     }));
   }
   let lastDownloadUrl=null;
