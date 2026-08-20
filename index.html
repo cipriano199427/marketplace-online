@@ -117,6 +117,14 @@
     .history-row-actions { white-space:nowrap; }
     .danger { background:#fff1f0; color:var(--danger); border:1px solid #f4c7c3; }
     .mini { padding:7px 10px; font-size:12px; }
+    .modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; padding:20px; z-index:50; }
+    .modal-backdrop.show { display:flex; }
+    .modal-card { width:min(560px,100%); background:#fff; border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow); padding:22px; }
+    .modal-card h3 { margin:0 0 6px; }
+    .modal-card .modal-grid { display:grid; gap:14px; margin-top:18px; }
+    .modal-card input[readonly] { background:#f7f9fc; color:var(--muted); }
+    .modal-actions { display:flex; justify-content:flex-end; gap:9px; flex-wrap:wrap; margin-top:18px; }
+    .edit-name-btn { white-space:nowrap; }
 
   </style>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -251,7 +259,7 @@
           <thead><tr>
             <th>SKU</th><th>Produto</th><th>Variação</th>
             <th class="num">Total considerado</th><th class="num">Sugestão de compra</th><th class="num">Média/dia</th><th class="num">Estoque</th>
-            <th class="num">TikTok líquido</th><th class="num">Mercado Livre líquido</th><th class="num">Shopee líquido</th><th class="num">SHEIN líquido</th><th class="num">Amazon pedidas</th><th class="num">Droga Raia líquido</th><th class="num">Magazine Luiza líquido</th><th class="num">Beleza na Web líquido</th><th>SKU pendente?</th>
+            <th class="num">TikTok líquido</th><th class="num">Mercado Livre líquido</th><th class="num">Shopee líquido</th><th class="num">SHEIN líquido</th><th class="num">Amazon pedidas</th><th class="num">Droga Raia líquido</th><th class="num">Magazine Luiza líquido</th><th class="num">Beleza na Web líquido</th><th>SKU pendente?</th><th id="productEditHeader" style="display:none">Padronização</th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -285,6 +293,24 @@
       </details>
     </div>
   </div>
+
+  <div id="productModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
+      <h3 id="productModalTitle">Padronizar nome do produto</h3>
+      <p class="footnote" style="margin-top:4px">O nome original dos marketplaces continua salvo. Esta configuração altera apenas como o SKU aparece no dashboard e nas exportações.</p>
+      <div class="modal-grid">
+        <label><span>SKU</span><input id="catalogSku" type="text" readonly /></label>
+        <label><span>Produto padrão</span><input id="catalogProduct" type="text" placeholder="Ex.: Shampoo Haskell Cavalo Forte" /></label>
+        <label><span>Variação padrão</span><input id="catalogVariation" type="text" placeholder="Ex.: 300 ml" /></label>
+      </div>
+      <p class="footnote">Para variações do mesmo produto, use exatamente o mesmo <strong>Produto padrão</strong> em todos os SKUs e altere somente a <strong>Variação padrão</strong>.</p>
+      <div class="modal-actions">
+        <button id="catalogResetBtn" type="button" class="danger">Usar nome dos marketplaces</button>
+        <button id="catalogCancelBtn" type="button" class="secondary">Cancelar</button>
+        <button id="catalogSaveBtn" type="button" class="primary">Salvar nome padrão</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -300,7 +326,7 @@
 
 
   const PT_MONTHS = { janeiro:1, fevereiro:2, marco:3, abril:4, maio:5, junho:6, julho:7, agosto:8, setembro:9, outubro:10, novembro:11, dezembro:12 };
-  let appState = { summary: [], pending: [], base: [], metrics: null, stock: null, hasStock: false };
+  let appState = { summary: [], pending: [], base: [], metrics: null, stock: null, hasStock: false, catalog: new Map() };
   let dashboardAvailableMin = null;
   let dashboardAvailableMax = null;
   let dashboardPeriodMode = '15';
@@ -710,12 +736,85 @@
 
   function fmtDate(d){ return d instanceof Date&&!isNaN(d)?new Intl.DateTimeFormat('pt-BR').format(d):'-'; }
   function esc(v){ return String(v??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
+
+  async function loadProductCatalog(pageSize=1000){
+    const map=new Map();
+    let from=0;
+    while(true){
+      const {data,error}=await db.from('product_catalog').select('sku,product_name,variation_name').range(from,from+pageSize-1);
+      if(error){
+        if(error.code==='42P01' || /product_catalog/i.test(error.message||'')){ console.warn('Cadastro mestre ainda não criado.',error); return map; }
+        throw error;
+      }
+      const chunk=data||[];
+      for(const r of chunk) map.set(normSku(r.sku),{product_name:r.product_name??'',variation_name:r.variation_name??''});
+      if(chunk.length<pageSize) break;
+      from+=pageSize;
+      if(from>1000000) throw new Error('O cadastro de produtos excedeu 1.000.000 de registros.');
+    }
+    return map;
+  }
+  function applyProductCatalog(summary,catalog){
+    for(const r of summary){
+      r.ProdutoOrigem=r.Produto; r.VariacaoOrigem=r.Variacao;
+      const c=catalog.get(normSku(r.SKU));
+      if(c){
+        r.Produto=c.product_name||r.Produto;
+        r.Variacao=c.variation_name??'';
+        r.NomePadronizado=true;
+      } else r.NomePadronizado=false;
+    }
+  }
+  function openProductEditor(sku){
+    if(!isAdminUser()) return;
+    const r=appState.summary.find(x=>x.SKU===sku);
+    if(!r || r.SKU_Pendente) return;
+    $('catalogSku').value=r.SKU;
+    $('catalogProduct').value=r.Produto||'';
+    $('catalogVariation').value=r.Variacao||'';
+    $('productModal').classList.add('show');
+    $('productModal').setAttribute('aria-hidden','false');
+    setTimeout(()=>$('catalogProduct').focus(),0);
+  }
+  function closeProductEditor(){
+    $('productModal').classList.remove('show');
+    $('productModal').setAttribute('aria-hidden','true');
+  }
+  async function saveProductEditor(){
+    if(!isAdminUser()){ setStatus('Apenas o administrador pode padronizar nomes.','error'); return; }
+    const sku=normSku($('catalogSku').value), product=$('catalogProduct').value.trim(), variation=$('catalogVariation').value.trim();
+    if(!sku||!product){ setStatus('Informe um nome padrão para o produto.','warn'); return; }
+    const {error}=await db.from('product_catalog').upsert({sku,product_name:product,variation_name:variation,updated_by:currentUser.id,updated_at:new Date().toISOString()},{onConflict:'sku'});
+    if(error) throw error;
+    appState.catalog.set(sku,{product_name:product,variation_name:variation});
+    const r=appState.summary.find(x=>x.SKU===sku);
+    if(r){ r.Produto=product; r.Variacao=variation; r.NomePadronizado=true; }
+    closeProductEditor(); renderSummary();
+    setStatus(`Nome padrão salvo para ${sku}.`,'ok');
+  }
+  async function resetProductEditor(){
+    if(!isAdminUser()) return;
+    const sku=normSku($('catalogSku').value);
+    if(!sku) return;
+    const {error}=await db.from('product_catalog').delete().eq('sku',sku);
+    if(error) throw error;
+    appState.catalog.delete(sku);
+    closeProductEditor();
+    await refreshDashboard(false);
+    setStatus(`O SKU ${sku} voltou a usar o nome vindo dos marketplaces.`,'ok');
+  }
+
   function renderSummary() {
     const q=normText($('searchSku').value); const body=$('summaryTable').querySelector('tbody'); body.innerHTML='';
     const data=appState.summary.filter(r=>!q||normText(`${r.SKU} ${r.Produto} ${r.Variacao}`).includes(q));
-    if(!data.length){ body.innerHTML='<tr><td class="empty" colspan="16">Nenhum SKU encontrado.</td></tr>'; return; }
+    const admin=isAdminUser();
+    if(!data.length){ body.innerHTML=`<tr><td class="empty" colspan="${admin?17:16}">Nenhum SKU encontrado.</td></tr>`; return; }
     const frag=document.createDocumentFragment();
-    for(const r of data){ const tr=document.createElement('tr'); if(r.SKU_Pendente)tr.className='pending-row'; tr.innerHTML=`<td class="sku">${esc(r.SKU)}</td><td>${esc(r.Produto)}</td><td>${esc(r.Variacao||'')}</td><td class="num"><strong>${nf2.format(r.Total_Liquido)}</strong></td><td class="num"><strong>${nf0.format(r.Pedido_Sugerido)}</strong></td><td class="num">${nf0.format(Math.round(r.Media_Dia))}</td><td class="num">${r.Estoque===null?'—':nf2.format(r.Estoque)}</td><td class="num">${nf2.format(r.TikTok_Liquido)}</td><td class="num">${nf2.format(r.Mercado_Livre_Liquido)}</td><td class="num">${nf2.format(r.Shopee_Liquido)}</td><td class="num">${nf2.format(r.SHEIN_Liquido)}</td><td class="num">${nf2.format(r.Amazon_Pedidas)}</td><td class="num">${nf2.format(r.Droga_Raia_Liquido)}</td><td class="num">${nf2.format(r.Magazine_Luiza_Liquido)}</td><td class="num">${nf2.format(r.Beleza_na_Web_Liquido)}</td><td>${r.SKU_Pendente?'<span class="pill warn">SIM</span>':'<span class="pill ok">NÃO</span>'}</td>`; frag.appendChild(tr); }
+    for(const r of data){
+      const tr=document.createElement('tr'); if(r.SKU_Pendente)tr.className='pending-row';
+      const editCell=admin?`<td>${r.SKU_Pendente?'—':`<button type="button" class="secondary mini edit-name-btn" data-edit-product="${esc(r.SKU)}">${r.NomePadronizado?'Editar padrão':'Padronizar'}</button>`}</td>`:'';
+      tr.innerHTML=`<td class="sku">${esc(r.SKU)}</td><td>${esc(r.Produto)}</td><td>${esc(r.Variacao||'')}</td><td class="num"><strong>${nf2.format(r.Total_Liquido)}</strong></td><td class="num"><strong>${nf0.format(r.Pedido_Sugerido)}</strong></td><td class="num">${nf0.format(Math.round(r.Media_Dia))}</td><td class="num">${r.Estoque===null?'—':nf2.format(r.Estoque)}</td><td class="num">${nf2.format(r.TikTok_Liquido)}</td><td class="num">${nf2.format(r.Mercado_Livre_Liquido)}</td><td class="num">${nf2.format(r.Shopee_Liquido)}</td><td class="num">${nf2.format(r.SHEIN_Liquido)}</td><td class="num">${nf2.format(r.Amazon_Pedidas)}</td><td class="num">${nf2.format(r.Droga_Raia_Liquido)}</td><td class="num">${nf2.format(r.Magazine_Luiza_Liquido)}</td><td class="num">${nf2.format(r.Beleza_na_Web_Liquido)}</td><td>${r.SKU_Pendente?'<span class="pill warn">SIM</span>':'<span class="pill ok">NÃO</span>'}</td>${editCell}`; frag.appendChild(tr);
+    }
     body.appendChild(frag);
   }
   function renderPending() {
@@ -1025,15 +1124,18 @@
     if(start>end){ setStatus('A Data inicial não pode ser maior que a Data final.','warn'); return; }
     try{
       if(showStatus)setStatus('Atualizando dashboard salvo...','info');
-      const [sum,pend]=await Promise.all([
+      const [sum,pend,catalog]=await Promise.all([
         fetchAllRpcRows('get_sales_summary',{p_start:start,p_end:end}),
-        fetchAllRpcRows('get_pending_skus',{p_start:start,p_end:end})
+        fetchAllRpcRows('get_pending_skus',{p_start:start,p_end:end}),
+        loadProductCatalog()
       ]);
       let stock=null; const sf=$('stockFile').files[0]; if(sf) stock=await readStock(sf);
       const summary=(sum||[]).map(r=>({
         SKU:r.sku, Produto:r.produto||'', Variacao:r.variacao||'',
         TikTok_Liquido:Number(r.tiktok_liquido||0), Mercado_Livre_Liquido:Number(r.mercado_livre_liquido||0), Shopee_Liquido:Number(r.shopee_liquido||0), SHEIN_Liquido:Number(r.shein_liquido||0), Amazon_Pedidas:Number(r.amazon_pedidas||0), Droga_Raia_Liquido:Number(r.droga_raia_liquido||0), Magazine_Luiza_Liquido:Number(r.magazine_luiza_liquido||0), Beleza_na_Web_Liquido:Number(r.beleza_na_web_liquido||0), Total_Liquido:Number(r.total_considerado||0), Media_Dia:Number(r.media_dia||0), Estoque:null, Pedido_Sugerido:Number(r.pedido_sugerido||0), SKU_Pendente:!!r.sku_pendente
       }));
+      appState.catalog=catalog;
+      applyProductCatalog(summary,catalog);
       applyStock(summary,stock);
       const pending=(pend||[]).map(r=>({Marketplace:r.marketplace,Identificador:r.identificador,Produto:r.produto||'',Variacao:r.variacao||'',Unidades_vendidas:Number(r.unidades_vendidas||0),SKU_sugerido:'',Motivo:'SKU ausente no arquivo de origem'}));
       const sDate=parseDbDate(start), eDate=parseDbDate(end), days=Math.floor((eDate-sDate)/86400000)+1;
@@ -1090,6 +1192,7 @@
     $('userEmail').textContent=(currentUser.email||'') + (admin ? ' • Administrador' : '');
     $('adminImportCard').style.display=admin?'block':'none';
     $('adminHistoryCard').style.display=admin?'block':'none';
+    $('productEditHeader').style.display=admin?'table-cell':'none';
     try{
       const shouldSetDashboardDefault = dashboardDefaultsUserId !== currentUser.id;
       if(shouldSetDashboardDefault) dashboardDefaultsUserId = currentUser.id;
@@ -1115,6 +1218,12 @@
   $('csvBtn').addEventListener('click',async()=>{try{await exportCSV();}catch(e){console.error(e);setStatus(e?.message||String(e),'error');}});
   $('xlsxBtn').addEventListener('click',async()=>{try{await exportXLSX();}catch(e){console.error(e);setStatus(e?.message||String(e),'error');}});
   $('refreshHistoryBtn').addEventListener('click',loadImportHistory);
+  $('summaryTable').querySelector('tbody').addEventListener('click',e=>{ const btn=e.target.closest('button[data-edit-product]'); if(btn) openProductEditor(btn.dataset.editProduct); });
+  $('catalogCancelBtn').addEventListener('click',closeProductEditor);
+  $('catalogSaveBtn').addEventListener('click',async()=>{try{await saveProductEditor();}catch(e){console.error(e);setStatus(e?.message||String(e),'error');}});
+  $('catalogResetBtn').addEventListener('click',async()=>{try{await resetProductEditor();}catch(e){console.error(e);setStatus(e?.message||String(e),'error');}});
+  $('productModal').addEventListener('click',e=>{ if(e.target===$('productModal')) closeProductEditor(); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('productModal').classList.contains('show')) closeProductEditor(); });
   $('loginBtn').addEventListener('click',login);
   $('logoutBtn').addEventListener('click',logout);
   $('authPassword').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
