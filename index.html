@@ -155,6 +155,8 @@
     <div class="top-user"><span id="userEmail" class="user-email"></span><span class="badge">Online • Supabase</span><button id="logoutBtn" class="secondary mini">Sair</button></div>
   </div>
 
+  <div id="globalStatus" class="status info" style="margin-bottom:16px"></div>
+
   <div id="adminImportCard" class="card" style="display:none">
     <h2>1. Importar arquivos</h2>
     <div class="grid market-grid">
@@ -407,11 +409,15 @@
   }
 
   function setStatus(message, type='info') {
-    const el = $('status');
-    el.textContent = message;
-    el.className = `status show ${type}`;
+    const globalEl = $('globalStatus');
+    if(globalEl){ globalEl.textContent=message; globalEl.className=`status show ${type}`; }
+    const adminEl = $('status');
+    if(adminEl){ adminEl.textContent=message; adminEl.className=`status show ${type}`; }
   }
-  function clearStatus() { $('status').className = 'status info'; $('status').textContent = ''; }
+  function clearStatus() {
+    const globalEl=$('globalStatus'); if(globalEl){ globalEl.className='status info'; globalEl.textContent=''; }
+    const adminEl=$('status'); if(adminEl){ adminEl.className='status info'; adminEl.textContent=''; }
+  }
   function needXLSX() {
     if (!window.XLSX) throw new Error('Não foi possível carregar o leitor de Excel. Verifique sua conexão com a internet e recarregue a página.');
   }
@@ -1127,6 +1133,39 @@
     return all;
   }
 
+  async function fetchSummaryRows(start,end){
+    const args={p_start:start,p_end:end};
+
+    // Prefer the one-row JSON payload. It is not affected by PostgREST's
+    // maximum number of rows per response.
+    try{
+      const result=await db.rpc('get_sales_summary_payload',args);
+      if(!result.error){
+        const first=Array.isArray(result.data)?result.data[0]:result.data;
+        let payload=first && typeof first==='object' && !Array.isArray(first) && 'payload' in first ? first.payload : first;
+        if(typeof payload==='string'){ try{ payload=JSON.parse(payload); }catch(_){} }
+        if(Array.isArray(payload)) return payload;
+      }else{
+        console.warn('[Dashboard] get_sales_summary_payload indisponível:',result.error.message);
+      }
+    }catch(e){ console.warn('[Dashboard] payload RPC falhou:',e); }
+
+    // Compatibility with the previous JSON RPC, if it was already installed.
+    try{
+      const result=await db.rpc('get_sales_summary_json',args);
+      if(!result.error){
+        let payload=result.data;
+        if(typeof payload==='string'){ try{ payload=JSON.parse(payload); }catch(_){} }
+        if(Array.isArray(payload)) return payload;
+      }else{
+        console.warn('[Dashboard] get_sales_summary_json indisponível:',result.error.message);
+      }
+    }catch(e){ console.warn('[Dashboard] JSON RPC falhou:',e); }
+
+    // Last-resort fallback keeps the site usable even before the SQL upgrade.
+    return await fetchAllRpcRows('get_sales_summary',args);
+  }
+
   async function refreshDashboard(showStatus=true){
     if(!currentUser) return;
     const start=$('dashboardStartDate').value, end=$('dashboardEndDate').value;
@@ -1134,13 +1173,11 @@
     if(start>end){ setStatus('A Data inicial não pode ser maior que a Data final.','warn'); return; }
     try{
       if(showStatus)setStatus('Atualizando dashboard salvo...','info');
-      const [summaryJson,pend,catalog]=await Promise.all([
-        db.rpc('get_sales_summary_json',{p_start:start,p_end:end}),
+      const [sum,pend,catalog]=await Promise.all([
+        fetchSummaryRows(start,end),
         fetchAllRpcRows('get_pending_skus',{p_start:start,p_end:end}),
         loadProductCatalog()
       ]);
-      if(summaryJson.error) throw summaryJson.error;
-      const sum=Array.isArray(summaryJson.data)?summaryJson.data:[];
       let stock=null; const sf=$('stockFile').files[0]; if(sf) stock=await readStock(sf);
       const summary=(sum||[]).map(r=>({
         SKU:r.sku, Produto:r.produto||'', Variacao:r.variacao||'',
@@ -1213,7 +1250,7 @@
       if(admin) await loadImportHistory();
       await refreshDashboard(false);
     }
-    catch(e){ console.error(e); setStatus('O login funcionou, mas o banco ainda não está configurado. Execute o arquivo database.sql no SQL Editor do Supabase.','warn'); }
+    catch(e){ console.error(e); setStatus(`O login funcionou, mas houve erro ao carregar os dados: ${e?.message||e}`,'error'); }
   }
 
   $('processBtn').addEventListener('click',processOnline);
