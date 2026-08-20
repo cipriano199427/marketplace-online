@@ -333,7 +333,7 @@
 
 
   const PT_MONTHS = { janeiro:1, fevereiro:2, marco:3, abril:4, maio:5, junho:6, julho:7, agosto:8, setembro:9, outubro:10, novembro:11, dezembro:12 };
-  let appState = { summary: [], pending: [], base: [], metrics: null, stock: null, hasStock: false, catalog: new Map() };
+  let appState = { summary: [], pending: [], base: [], metrics: null, stock: null, hasStock: false, catalog: new Map(), loadedSearch: '' };
   let dashboardAvailableMin = null;
   let dashboardAvailableMax = null;
   let dashboardPeriodMode = '15';
@@ -818,7 +818,12 @@
   function renderSummary() {
     const q=normText($('searchSku').value); const body=$('summaryTable').querySelector('tbody'); body.innerHTML='';
     const sortMode=$('sortProducts')?.value||'sales';
-    const data=appState.summary.filter(r=>!q||normText(`${r.SKU} ${r.Produto} ${r.Variacao}`).includes(q));
+    // If this exact search was already applied by the database, keep every row
+    // returned by the server. This also allows matches against an alternate raw
+    // marketplace name for the same SKU while displaying the canonical name.
+    const data=(q && q!==appState.loadedSearch)
+      ? appState.summary.filter(r=>normText(`${r.SKU} ${r.Produto} ${r.Variacao}`).includes(q))
+      : appState.summary.slice();
     const compareText=(a,b)=>String(a||'').localeCompare(String(b||''),'pt-BR',{sensitivity:'base',numeric:true});
     if(sortMode==='az') data.sort((a,b)=>compareText(a.Produto,b.Produto)||compareText(a.Variacao,b.Variacao)||compareText(a.SKU,b.SKU));
     else if(sortMode==='za') data.sort((a,b)=>compareText(b.Produto,a.Produto)||compareText(b.Variacao,a.Variacao)||compareText(b.SKU,a.SKU));
@@ -1133,11 +1138,39 @@
     return all;
   }
 
-  async function fetchSummaryRows(start,end){
+  async function fetchSummaryRows(start,end,searchText=''){
+    const search=String(searchText||'').trim();
+
+    // Preferred path: pagination happens inside PostgreSQL. This avoids the
+    // PostgREST/Supabase row cap and applies the text search BEFORE pagination.
+    // Therefore a wider period cannot hide matching SKUs just because more
+    // products exist in the result set.
+    try{
+      const all=[];
+      const pageSize=500;
+      let offset=0;
+      while(true){
+        const {data,error}=await db.rpc('get_sales_summary_page',{
+          p_start:start,
+          p_end:end,
+          p_search:search||null,
+          p_offset:offset,
+          p_limit:pageSize
+        });
+        if(error) throw error;
+        const chunk=Array.isArray(data)?data:[];
+        for(const row of chunk) all.push(row);
+        if(chunk.length<pageSize) return all;
+        offset+=pageSize;
+        if(offset>1000000) throw new Error('O resumo ultrapassou 1.000.000 de SKUs e foi interrompido por segurança.');
+      }
+    }catch(e){
+      console.warn('[Dashboard] get_sales_summary_page indisponível; usando compatibilidade:',e?.message||e);
+    }
+
     const args={p_start:start,p_end:end};
 
-    // Prefer the one-row JSON payload. It is not affected by PostgREST's
-    // maximum number of rows per response.
+    // Compatibility with previous installations.
     try{
       const result=await db.rpc('get_sales_summary_payload',args);
       if(!result.error){
@@ -1145,24 +1178,18 @@
         let payload=first && typeof first==='object' && !Array.isArray(first) && 'payload' in first ? first.payload : first;
         if(typeof payload==='string'){ try{ payload=JSON.parse(payload); }catch(_){} }
         if(Array.isArray(payload)) return payload;
-      }else{
-        console.warn('[Dashboard] get_sales_summary_payload indisponível:',result.error.message);
       }
     }catch(e){ console.warn('[Dashboard] payload RPC falhou:',e); }
 
-    // Compatibility with the previous JSON RPC, if it was already installed.
     try{
       const result=await db.rpc('get_sales_summary_json',args);
       if(!result.error){
         let payload=result.data;
         if(typeof payload==='string'){ try{ payload=JSON.parse(payload); }catch(_){} }
         if(Array.isArray(payload)) return payload;
-      }else{
-        console.warn('[Dashboard] get_sales_summary_json indisponível:',result.error.message);
       }
     }catch(e){ console.warn('[Dashboard] JSON RPC falhou:',e); }
 
-    // Last-resort fallback keeps the site usable even before the SQL upgrade.
     return await fetchAllRpcRows('get_sales_summary',args);
   }
 
@@ -1174,7 +1201,7 @@
     try{
       if(showStatus)setStatus('Atualizando dashboard salvo...','info');
       const [sum,pend,catalog]=await Promise.all([
-        fetchSummaryRows(start,end),
+        fetchSummaryRows(start,end,$('searchSku').value),
         fetchAllRpcRows('get_pending_skus',{p_start:start,p_end:end}),
         loadProductCatalog()
       ]);
@@ -1189,6 +1216,7 @@
       const pending=(pend||[]).map(r=>({Marketplace:r.marketplace,Identificador:r.identificador,Produto:r.produto||'',Variacao:r.variacao||'',Unidades_vendidas:Number(r.unidades_vendidas||0),SKU_sugerido:'',Motivo:'SKU ausente no arquivo de origem'}));
       const sDate=parseDbDate(start), eDate=parseDbDate(end), days=Math.floor((eDate-sDate)/86400000)+1;
       appState.summary=summary; appState.pending=pending; appState.stock=stock; appState.hasStock=stock instanceof Map;
+      appState.loadedSearch=normText($('searchSku').value);
       appState.metrics={start:sDate,end:eDate,days,rows:summary.length,distinctSkus:summary.filter(r=>!r.SKU_Pendente).length,pendingUnits:pending.reduce((s,r)=>s+r.Unidades_vendidas,0),netUnits:summary.reduce((s,r)=>s+r.Total_Liquido,0)};
       console.info('[Dashboard] periodo',start,'a',end,'SKUs carregados:',summary.length);
       renderAll();
@@ -1264,7 +1292,14 @@
   $('dashboardStartDate').addEventListener('change',()=>{ setCustomDashboardPeriod(); refreshDashboard(true); });
   $('dashboardEndDate').addEventListener('change',()=>{ setCustomDashboardPeriod(); refreshDashboard(true); });
   $('stockFile').addEventListener('change',()=>refreshDashboard(true));
-  $('searchSku').addEventListener('input',renderSummary);
+  let searchRefreshTimer=null;
+  $('searchSku').addEventListener('input',()=>{
+    // Filter immediately with the rows already loaded, then refresh from the
+    // database so the search is applied before server-side pagination.
+    renderSummary();
+    clearTimeout(searchRefreshTimer);
+    searchRefreshTimer=setTimeout(()=>refreshDashboard(false),350);
+  });
   $('sortProducts').addEventListener('change',renderSummary);
   $('csvBtn').addEventListener('click',async()=>{try{await exportCSV();}catch(e){console.error(e);setStatus(e?.message||String(e),'error');}});
   $('xlsxBtn').addEventListener('click',async()=>{try{await exportXLSX();}catch(e){console.error(e);setStatus(e?.message||String(e),'error');}});
