@@ -424,6 +424,41 @@
     return '';
   }
 
+  function isBtSkinBaseFamily(product) {
+    const n=normText(product);
+    if(!n) return false;
+    const brand=/\bbruna tavares\b/.test(n) || /(^|\s)bt(?=\s|$)/.test(n) || n.includes('bt skin');
+    const family=n.includes('bt skin') || n.includes('skin base') || (n.includes('base') && (n.includes('liquida') || n.includes('liquid')));
+    return brand && family;
+  }
+
+  function canonicalProductName(product) {
+    const original=String(product ?? '').replace(/[\t\n]+/g,' ').replace(/\s+/g,' ').trim();
+    if(!original) return '';
+    // A BT Skin aparece com muitos titulos diferentes entre marketplaces
+    // ("BT Skin Base", "Base Liquida Bruna Tavares", "com acabamento aveludado" etc.).
+    // Para a familia ser pesquisavel e visualmente consistente, usamos um unico nome-base;
+    // a cor/tom continua exclusivamente na coluna Variacao.
+    if(isBtSkinBaseFamily(original)) return 'Bruna Tavares BT Skin Base Líquida';
+    return original;
+  }
+
+  function productFamilyAliases(row) {
+    const source=[row?.Produto,row?.ProdutoOrigem].filter(Boolean).join(' ');
+    const aliases=[];
+    if(isBtSkinBaseFamily(source)) aliases.push('bt skin base bruna tavares base liquida skin base');
+    return aliases.join(' ');
+  }
+
+  function matchesSummarySearch(row, query) {
+    const q=normText(query);
+    if(!q) return true;
+    const hay=normText(`${row?.SKU||''} ${row?.Produto||''} ${row?.Variacao||''} ${row?.ProdutoOrigem||''} ${row?.VariacaoOrigem||''} ${productFamilyAliases(row)}`);
+    // Busca por palavras, em vez de exigir a frase inteira exatamente como um marketplace escreveu.
+    // Ex.: "bt skin base" encontra "Bruna Tavares Base Liquida L30" por pertencer à mesma familia.
+    return q.split(' ').filter(Boolean).every(token=>hay.includes(token));
+  }
+
   function removeInferredVariationFromProduct(product, variation) {
     const original=String(product ?? '').replace(/[\t\n]+/g,' ').replace(/\s+/g,' ').trim();
     const v=String(variation ?? '').trim();
@@ -875,7 +910,8 @@
       const inferredHasPriority=!!inferred && looksLikeShadeCode(inferred) && (isGenericVariation(cleaned) || looksLikeMeasurementVariation(cleaned));
       const automaticVariation=inferredHasPriority ? inferred : (!isGenericVariation(cleaned) ? cleaned : (inferred || 'Padrão'));
       const inferredFromTitle=!!inferred && (!cleaned || inferredHasPriority);
-      const automaticProduct=inferredFromTitle ? removeInferredVariationFromProduct(r.ProdutoOrigem,inferred) : r.ProdutoOrigem;
+      const automaticProductRaw=inferredFromTitle ? removeInferredVariationFromProduct(r.ProdutoOrigem,inferred) : r.ProdutoOrigem;
+      const automaticProduct=canonicalProductName(automaticProductRaw);
       const c=catalog.get(normSku(r.SKU));
       if(c){
         // O cadastro mestre continua soberano quando existe uma variacao preenchida.
@@ -943,7 +979,7 @@
     // periodo. Isso evita que falhas/fallbacks de RPC mostrem itens sem relacao
     // com o texto digitado e garante o mesmo criterio em 7/15/30 dias.
     const data=q
-      ? appState.summary.filter(r=>normText(`${r.SKU} ${r.Produto} ${r.Variacao}`).includes(q))
+      ? appState.summary.filter(r=>matchesSummarySearch(r,q))
       : appState.summary.slice();
     const compareText=(a,b)=>String(a||'').localeCompare(String(b||''),'pt-BR',{sensitivity:'base',numeric:true});
     if(sortField==='product') {
