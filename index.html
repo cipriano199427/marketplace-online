@@ -270,7 +270,7 @@
           <thead><tr>
             <th>SKU</th><th>Produto</th><th>Variação</th>
             <th class="num">Total</th><th class="num">Sugestão</th><th class="num">Média/dia</th><th class="num">Estoque</th>
-            <th class="num">TikTok</th><th class="num">Mercado Livre</th><th class="num">Shopee</th><th class="num">SHEIN</th><th class="num">Amazon pedidas</th><th class="num">Droga Raia</th><th class="num">Magazine Luiza</th><th class="num">Beleza na Web</th><th>SKU pendente?</th><th id="productEditHeader" style="display:none">Padronização</th>
+            <th class="num">TikTok</th><th class="num">Mercado Livre</th><th class="num">Shopee</th><th class="num">SHEIN</th><th class="num">Amazon</th><th class="num">Droga Raia</th><th class="num">Magazine Luiza</th><th class="num">Beleza na Web</th><th>SKU pendente?</th><th id="productEditHeader" style="display:none">Padronização</th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -1081,7 +1081,7 @@
 
   function summaryExportRows() {
     return appState.summary.map(r=>({
-      SKU:r.SKU, Produto:r.Produto, 'Variação':r.Variacao, 'Total':r.Total_Liquido, 'Sugestão':r.Pedido_Sugerido??'', 'Média/dia':Math.round(r.Media_Dia), 'Estoque Atual':r.Estoque??'', 'TikTok':r.TikTok_Liquido, 'Mercado Livre':r.Mercado_Livre_Liquido, 'Shopee':r.Shopee_Liquido, 'SHEIN':r.SHEIN_Liquido, 'Amazon Pedidas':r.Amazon_Pedidas, 'Droga Raia':r.Droga_Raia_Liquido, 'Magazine Luiza':r.Magazine_Luiza_Liquido, 'Beleza na Web':r.Beleza_na_Web_Liquido, 'SKU pendente?':r.SKU_Pendente?'SIM':'NÃO'
+      SKU:r.SKU, Produto:r.Produto, 'Variação':r.Variacao, 'Total':r.Total_Liquido, 'Sugestão':r.Pedido_Sugerido??'', 'Média/dia':Math.round(r.Media_Dia), 'Estoque Atual':r.Estoque??'', 'TikTok':r.TikTok_Liquido, 'Mercado Livre':r.Mercado_Livre_Liquido, 'Shopee':r.Shopee_Liquido, 'SHEIN':r.SHEIN_Liquido, 'Amazon':r.Amazon_Pedidas, 'Droga Raia':r.Droga_Raia_Liquido, 'Magazine Luiza':r.Magazine_Luiza_Liquido, 'Beleza na Web':r.Beleza_na_Web_Liquido, 'SKU pendente?':r.SKU_Pendente?'SIM':'NÃO'
     }));
   }
   let lastDownloadUrl=null;
