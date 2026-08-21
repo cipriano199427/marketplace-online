@@ -98,6 +98,8 @@
     @media (max-width: 1000px) {
       .grid-3, .grid-4, .grid-5, .controls { grid-template-columns: 1fr 1fr; }
       .hero { flex-direction: column; }
+      .hero-side { width:100%; min-width:0; }
+      .updates-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
     }
     @media (max-width: 650px) {
       .shell { padding: 16px; }
@@ -105,6 +107,8 @@
       .filters input { min-width: 0; width: 100%; }
       .dashboard-tools { align-items:stretch; }
       .custom-period { grid-template-columns:1fr; }
+      .hero-side { min-width:0; }
+      .updates-grid { grid-template-columns:1fr; }
     }
 
     .auth-shell { min-height: 100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
@@ -112,7 +116,25 @@
     .auth-card h1 { font-size:30px; }
     .auth-card input[type=email], .auth-card input[type=password] { width:100%; border:1px solid #cfd8e4; border-radius:10px; padding:12px; margin-top:6px; font-size:14px; }
     .auth-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px; }
+    .hero-side { width:min(100%, 560px); min-width:380px; display:flex; flex-direction:column; gap:12px; }
     .top-user { display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    .updates-card { background:#fff; border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow); padding:14px 16px; }
+    .updates-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+    .updates-title { font-size:14px; font-weight:900; color:var(--text); }
+    .updates-subtitle { font-size:12px; color:var(--muted); margin-top:4px; line-height:1.45; }
+    .updates-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:12px; }
+    .market-update { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; border:1px solid #e3eaf2; border-radius:14px; background:#fbfdff; }
+    .market-update.ok { background:#f6fffa; border-color:#c7ead6; }
+    .market-update.stale { background:#fff8f7; border-color:#f4c7c3; }
+    .market-left { display:flex; align-items:center; gap:10px; min-width:0; }
+    .market-logo { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; color:#fff; flex:0 0 auto; }
+    .market-meta { min-width:0; }
+    .market-name { font-size:13px; font-weight:800; line-height:1.2; }
+    .market-date { font-size:12px; color:var(--muted); margin-top:2px; line-height:1.25; }
+    .market-status { font-size:19px; font-weight:900; line-height:1; flex:0 0 auto; }
+    .market-status.ok { color:var(--ok); }
+    .market-status.stale { color:var(--danger); }
+    .updates-footnote { margin-top:10px; color:var(--muted); font-size:12px; line-height:1.45; }
     .user-email { font-size:13px; color:var(--muted); font-weight:700; }
     .history-row-actions { white-space:nowrap; }
     .danger { background:#fff1f0; color:var(--danger); border:1px solid #f4c7c3; }
@@ -152,7 +174,21 @@
       <h1>Vendas por SKU</h1>
       <p class="subtitle">Consolide TikTok, Mercado Livre, Shopee, SHEIN, Amazon, Droga Raia, Magazine Luiza e Beleza na Web em uma única visão. Escolha o período das vendas e veja unidades consideradas, variação, média diária e sugestão de compra com 15% adicional por SKU.</p>
     </div>
-    <div class="top-user"><span id="userEmail" class="user-email"></span><span class="badge">Online • Supabase</span><button id="logoutBtn" class="secondary mini">Sair</button></div>
+    <div class="hero-side">
+      <div class="top-user"><span id="userEmail" class="user-email"></span><span class="badge">Online • Supabase</span><button id="logoutBtn" class="secondary mini">Sair</button></div>
+      <div class="updates-card">
+        <div class="updates-head">
+          <div>
+            <div class="updates-title">Atualização das planilhas</div>
+            <div id="updatesReference" class="updates-subtitle">Carregando status das planilhas...</div>
+          </div>
+        </div>
+        <div id="updatesGrid" class="updates-grid">
+          <div class="empty" style="grid-column:1 / -1; padding:18px;">Carregando status...</div>
+        </div>
+        <div class="updates-footnote">✓ atualizado no mesmo dia da última importação geral • ✕ planilha ainda não atualizada nesse dia</div>
+      </div>
+    </div>
   </div>
 
   <div id="globalStatus" class="status info" style="margin-bottom:16px"></div>
@@ -342,6 +378,17 @@
   let dashboardAvailableMax = null;
   let dashboardPeriodMode = '15';
   let dashboardDefaultsUserId = null;
+
+  const MARKETPLACE_UPDATE_CONFIG = [
+    { key:'TikTok', label:'TikTok', short:'TT', color:'#111827', text:'#ffffff' },
+    { key:'Mercado Livre', label:'Mercado Livre', short:'ML', color:'#ffe600', text:'#111827' },
+    { key:'Shopee', label:'Shopee', short:'SP', color:'#ee4d2d', text:'#ffffff' },
+    { key:'SHEIN', label:'SHEIN', short:'SH', color:'#111827', text:'#ffffff' },
+    { key:'Amazon', label:'Amazon', short:'AMZ', color:'#232f3e', text:'#ffffff' },
+    { key:'Droga Raia', label:'Droga Raia', short:'DR', color:'#c62828', text:'#ffffff' },
+    { key:'Magazine Luiza', label:'Magazine Luiza', short:'MGL', color:'#0d6efd', text:'#ffffff' },
+    { key:'Beleza na Web', label:'Beleza na Web', short:'BLZ', color:'#7c3aed', text:'#ffffff' }
+  ];
 
   const $ = id => document.getElementById(id);
   const nf0 = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
@@ -548,6 +595,50 @@
   function clearStatus() {
     const globalEl=$('globalStatus'); if(globalEl){ globalEl.className='status info'; globalEl.textContent=''; }
     const adminEl=$('status'); if(adminEl){ adminEl.className='status info'; adminEl.textContent=''; }
+  }
+  function sameCalendarDay(a,b){
+    if(!(a instanceof Date) || isNaN(a) || !(b instanceof Date) || isNaN(b)) return false;
+    return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+  }
+  function formatDateTime(value){
+    if(!value) return '-';
+    const d = value instanceof Date ? value : new Date(value);
+    if(isNaN(d)) return '-';
+    return d.toLocaleString('pt-BR',{ dateStyle:'short', timeStyle:'short' });
+  }
+  async function loadMarketplaceUpdates(){
+    const grid=$('updatesGrid');
+    const ref=$('updatesReference');
+    if(!grid || !ref || !currentUser) return;
+    grid.innerHTML='<div class="empty" style="grid-column:1 / -1; padding:18px;">Carregando status...</div>';
+    ref.textContent='Carregando status das planilhas...';
+    const {data,error}=await db.from('imports').select('marketplace,created_at').order('created_at',{ascending:false}).limit(500);
+    if(error){
+      console.error(error);
+      ref.textContent='Não foi possível carregar o status das planilhas.';
+      grid.innerHTML='<div class="empty" style="grid-column:1 / -1; padding:18px;">Erro ao carregar status.</div>';
+      return;
+    }
+    const latestByMarket = new Map();
+    let latestGlobal = null;
+    for(const row of (data||[])){
+      const created = new Date(row.created_at);
+      if(isNaN(created)) continue;
+      if(!latestGlobal || created > latestGlobal) latestGlobal = created;
+      if(!latestByMarket.has(row.marketplace)) latestByMarket.set(row.marketplace, created);
+    }
+    ref.textContent = latestGlobal ? `Última importação geral: ${formatDateTime(latestGlobal)}` : 'Nenhuma importação salva ainda.';
+    const frag=document.createDocumentFragment();
+    for(const item of MARKETPLACE_UPDATE_CONFIG){
+      const updatedAt = latestByMarket.get(item.key) || null;
+      const ok = !!(updatedAt && latestGlobal && sameCalendarDay(updatedAt, latestGlobal));
+      const wrap=document.createElement('div');
+      wrap.className=`market-update ${ok ? 'ok' : 'stale'}`;
+      wrap.innerHTML=`<div class="market-left"><div class="market-logo" style="background:${item.color};color:${item.text};">${esc(item.short)}</div><div class="market-meta"><div class="market-name">${esc(item.label)}</div><div class="market-date">${updatedAt ? `Atualizado em ${esc(formatDateTime(updatedAt))}` : 'Sem planilha importada'}</div></div></div><div class="market-status ${ok ? 'ok' : 'stale'}" title="${ok ? 'Atualizado no mesmo dia da última importação geral' : 'Ainda não atualizado no mesmo dia da última importação geral'}">${ok ? '✓' : '✕'}</div>`;
+      frag.appendChild(wrap);
+    }
+    grid.innerHTML='';
+    grid.appendChild(frag);
   }
   function needXLSX() {
     if (!window.XLSX) throw new Error('Não foi possível carregar o leitor de Excel. Verifique sua conexão com a internet e recarregue a página.');
@@ -1276,6 +1367,7 @@
       for(const job of jobs){ const r=await job(); if(r.skipped) skipped++; else { imported++; totalRows+=r.rows||0; } }
       clearFileInputs();
       await loadImportHistory();
+      await loadMarketplaceUpdates();
       await loadAvailableRange(false);
       await refreshDashboard(false);
       setStatus(`Importação concluída: ${imported} arquivo(s) salvo(s), ${skipped} duplicado(s) ignorado(s), ${nf0.format(totalRows)} linhas novas.`,'ok');
@@ -1450,7 +1542,7 @@
       setStatus('Excluindo importação...','info');
       if(path){ const {error:storageError}=await db.storage.from('marketplace-files').remove([path]); if(storageError) console.warn(storageError); }
       const {error}=await db.from('imports').delete().eq('id',id); if(error) throw error;
-      await loadImportHistory(); await loadAvailableRange(false); await refreshDashboard(false);
+      await loadImportHistory(); await loadMarketplaceUpdates(); await loadAvailableRange(false); await refreshDashboard(false);
       setStatus('Importação excluída.','ok');
     }catch(e){ console.error(e); setStatus(e?.message||String(e),'error'); }
   }
@@ -1477,6 +1569,7 @@
       const shouldSetDashboardDefault = dashboardDefaultsUserId !== currentUser.id;
       if(shouldSetDashboardDefault) dashboardDefaultsUserId = currentUser.id;
       await loadAvailableRange(shouldSetDashboardDefault);
+      await loadMarketplaceUpdates();
       if(admin) await loadImportHistory();
       await refreshDashboard(false);
     }
