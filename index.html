@@ -85,6 +85,9 @@
     td { padding: 10px 12px; border-bottom: 1px solid #edf1f5; vertical-align: top; }
     tr:hover td { background: #fafcff; }
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    th.marketplace-col { text-align:center; padding:8px 6px; min-width:58px; }
+    .head-logo { width:34px; height:34px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; background:#fff; border:1px solid #d9e2ec; box-shadow:0 1px 2px rgba(16,24,40,.06); overflow:hidden; }
+    .head-logo img { width:24px; height:24px; object-fit:contain; display:block; }
     .sku { font-weight: 800; white-space: nowrap; }
     .pending-row td { background: #fff7ed; }
     .pill { display: inline-flex; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
@@ -127,7 +130,8 @@
     .market-update.ok { background:#f6fffa; border-color:#c7ead6; }
     .market-update.stale { background:#fff8f7; border-color:#f4c7c3; }
     .market-left { display:flex; align-items:center; gap:10px; min-width:0; }
-    .market-logo { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; color:#fff; flex:0 0 auto; }
+    .market-logo { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #d9e2ec; box-shadow:0 1px 2px rgba(16,24,40,.06); overflow:hidden; flex:0 0 auto; }
+    .market-logo img { width:24px; height:24px; object-fit:contain; display:block; }
     .market-meta { min-width:0; }
     .market-name { font-size:13px; font-weight:800; line-height:1.2; }
     .market-date { font-size:11px; color:var(--muted); margin-top:3px; line-height:1.25; }
@@ -307,7 +311,7 @@
           <thead><tr>
             <th>SKU</th><th>Produto</th><th>Variação</th>
             <th class="num">Total</th><th class="num">Sugestão</th><th class="num">Média/dia</th><th class="num">Estoque</th>
-            <th class="num">TikTok</th><th class="num">Mercado Livre</th><th class="num">Shopee</th><th class="num">SHEIN</th><th class="num">Amazon</th><th class="num">Droga Raia</th><th class="num">Magazine Luiza</th><th class="num">Beleza na Web</th><th>SKU pendente?</th><th id="productEditHeader" style="display:none">Padronização</th>
+            <th class="num marketplace-col" title="TikTok" aria-label="TikTok"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.tiktok.com" alt="TikTok" referrerpolicy="no-referrer" /></span></th><th class="num marketplace-col" title="Mercado Livre" aria-label="Mercado Livre"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.mercadolivre.com.br" alt="Mercado Livre" referrerpolicy="no-referrer" /></span></th><th class="num marketplace-col" title="Shopee" aria-label="Shopee"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://shopee.com.br" alt="Shopee" referrerpolicy="no-referrer" /></span></th><th class="num marketplace-col" title="SHEIN" aria-label="SHEIN"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://br.shein.com" alt="SHEIN" referrerpolicy="no-referrer" /></span></th><th class="num marketplace-col" title="Amazon" aria-label="Amazon"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.amazon.com.br" alt="Amazon" referrerpolicy="no-referrer" /></span></th><th class="num marketplace-col" title="Droga Raia" aria-label="Droga Raia"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.drogaraia.com.br" alt="Droga Raia" referrerpolicy="no-referrer" /></span></th><th class="num marketplace-col" title="Magazine Luiza" aria-label="Magazine Luiza"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.magazineluiza.com.br" alt="Magazine Luiza" referrerpolicy="no-referrer" /></span></th><th class="num marketplace-col" title="Beleza na Web" aria-label="Beleza na Web"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.belezanaweb.com.br" alt="Beleza na Web" referrerpolicy="no-referrer" /></span></th><th>SKU pendente?</th><th id="productEditHeader" style="display:none">Padronização</th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -381,14 +385,14 @@
   let dashboardDefaultsUserId = null;
 
   const MARKETPLACE_UPDATE_CONFIG = [
-    { key:'TikTok', label:'TikTok', short:'TT', color:'#111827', text:'#ffffff' },
-    { key:'Mercado Livre', label:'Mercado Livre', short:'ML', color:'#ffe600', text:'#111827' },
-    { key:'Shopee', label:'Shopee', short:'SP', color:'#ee4d2d', text:'#ffffff' },
-    { key:'SHEIN', label:'SHEIN', short:'SH', color:'#111827', text:'#ffffff' },
-    { key:'Amazon', label:'Amazon', short:'AMZ', color:'#232f3e', text:'#ffffff' },
-    { key:'Droga Raia', label:'Droga Raia', short:'DR', color:'#c62828', text:'#ffffff' },
-    { key:'Magazine Luiza', label:'Magazine Luiza', short:'MGL', color:'#0d6efd', text:'#ffffff' },
-    { key:'Beleza na Web', label:'Beleza na Web', short:'BLZ', color:'#7c3aed', text:'#ffffff' }
+    { key:'TikTok', label:'TikTok', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.tiktok.com' },
+    { key:'Mercado Livre', label:'Mercado Livre', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.mercadolivre.com.br' },
+    { key:'Shopee', label:'Shopee', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://shopee.com.br' },
+    { key:'SHEIN', label:'SHEIN', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://br.shein.com' },
+    { key:'Amazon', label:'Amazon', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.amazon.com.br' },
+    { key:'Droga Raia', label:'Droga Raia', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.drogaraia.com.br' },
+    { key:'Magazine Luiza', label:'Magazine Luiza', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.magazineluiza.com.br' },
+    { key:'Beleza na Web', label:'Beleza na Web', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.belezanaweb.com.br' }
   ];
 
   const $ = id => document.getElementById(id);
@@ -635,7 +639,7 @@
       const ok = !!(updatedAt && latestGlobal && sameCalendarDay(updatedAt, latestGlobal));
       const wrap=document.createElement('div');
       wrap.className=`market-update ${ok ? 'ok' : 'stale'}`;
-      wrap.innerHTML=`<div class="market-left"><div class="market-logo" style="background:${item.color};color:${item.text};">${esc(item.short)}</div><div class="market-meta"><div class="market-name">${esc(item.label)}</div><div class="market-date">${updatedAt ? `Atualizado em ${esc(formatDateTime(updatedAt))}` : 'Sem planilha importada'}</div></div></div><div class="market-status ${ok ? 'ok' : 'stale'}" title="${ok ? 'Atualizado no mesmo dia da última importação geral' : 'Ainda não atualizado no mesmo dia da última importação geral'}">${ok ? '✓' : '✕'}</div>`;
+      wrap.innerHTML=`<div class="market-left"><div class="market-logo"><img src="${esc(item.logoUrl)}" alt="${esc(item.label)}" referrerpolicy="no-referrer" /></div><div class="market-meta"><div class="market-name">${esc(item.label)}</div><div class="market-date">${updatedAt ? `Atualizado em ${esc(formatDateTime(updatedAt))}` : 'Sem planilha importada'}</div></div></div><div class="market-status ${ok ? 'ok' : 'stale'}" title="${ok ? 'Atualizado no mesmo dia da última importação geral' : 'Ainda não atualizado no mesmo dia da última importação geral'}">${ok ? '✓' : '✕'}</div>`;
       frag.appendChild(wrap);
     }
     grid.innerHTML='';
