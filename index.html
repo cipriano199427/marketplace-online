@@ -157,6 +157,11 @@
     .modal-card h3 { margin:0 0 6px; }
     .modal-card .modal-grid { display:grid; gap:14px; margin-top:18px; }
     .modal-card input[readonly] { background:#f7f9fc; color:var(--muted); }
+    .resolver-source { background:#f8fafc; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-top:14px; }
+    .resolver-source strong { display:block; margin-bottom:4px; }
+    .resolver-fields[hidden] { display:none !important; }
+    .pending-action { white-space:nowrap; }
+    .pending-sku-code { font-weight:800; white-space:nowrap; }
     .modal-actions { display:flex; justify-content:flex-end; gap:9px; flex-wrap:wrap; margin-top:18px; }
     .edit-name-btn { white-space:nowrap; }
 
@@ -277,7 +282,7 @@
       <div class="metric"><div class="label">Período</div><div id="mPeriod" class="value">-</div></div>
       <div class="metric"><div class="label">SKUs identificados</div><div id="mSkus" class="value">-</div></div>
       <div class="metric"><div class="label">Unidades consideradas</div><div id="mNet" class="value">-</div></div>
-      <div class="metric"><div class="label">Unidades sem SKU</div><div id="mPending" class="value">-</div></div>
+      <div class="metric"><div class="label">Unidades com SKU pendente</div><div id="mPending" class="value">-</div></div>
       <div class="metric"><div class="label">Compra sugerida</div><div id="mBuy" class="value">-</div></div>
     </div>
 
@@ -330,14 +335,19 @@
     </div>
 
     <div class="card section">
-      <div class="section-head"><h2>4. Pendências de SKU</h2></div>
-      <div class="table-wrap" style="max-height:420px">
+      <div class="section-head">
+        <div>
+          <h2>4. Pendências de SKU</h2>
+          <p class="footnote" style="margin:4px 0 0">Todo SKU vendido que não estiver no cadastro oficial e não tiver uma associação válida aparece aqui.</p>
+        </div>
+      </div>
+      <div class="table-wrap" style="max-height:460px">
         <table id="pendingTable">
-          <thead><tr><th>Marketplace</th><th>Identificador</th><th>Produto</th><th>Variação</th><th class="num">Unidades vendidas</th><th>SKU sugerido</th><th>Motivo</th></tr></thead>
+          <thead><tr><th>Marketplace</th><th>SKU de origem</th><th>Produto</th><th>Variação</th><th class="num">Unidades</th><th>Motivo</th><th>Ação</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
-      <p class="footnote">Sugestões de SKU são apenas para revisão. O sistema não une automaticamente uma venda sem SKU a outro cadastro.</p>
+      <p class="footnote">O administrador pode associar o código recebido a um SKU já cadastrado ou criar um novo SKU oficial. Depois de salvar, as vendas são consolidadas automaticamente no SKU resolvido.</p>
     </div>
 
     <div class="card section">
@@ -371,6 +381,42 @@
         <button id="catalogResetBtn" type="button" class="danger">Usar nome dos marketplaces</button>
         <button id="catalogCancelBtn" type="button" class="secondary">Cancelar</button>
         <button id="catalogSaveBtn" type="button" class="primary">Salvar nome padrão</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="pendingResolverModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="pendingResolverTitle">
+      <h3 id="pendingResolverTitle">Resolver pendência de SKU</h3>
+      <p class="footnote" style="margin-top:4px">Escolha se este código deve apontar para um SKU oficial existente ou se deseja criar um novo cadastro.</p>
+      <div class="resolver-source">
+        <strong id="pendingSourceTitle">—</strong>
+        <span id="pendingSourceProduct" class="footnote">—</span>
+      </div>
+      <div class="modal-grid">
+        <label><span>Como deseja resolver?</span>
+          <select id="pendingResolveMode">
+            <option value="existing">Associar a um SKU existente</option>
+            <option value="create">Criar um novo SKU oficial</option>
+          </select>
+        </label>
+        <div id="pendingExistingFields" class="resolver-fields">
+          <label><span>SKU oficial existente</span><input id="pendingExistingSku" type="text" list="pendingCatalogOptions" placeholder="Digite ou escolha um SKU existente" autocomplete="off" /></label>
+          <datalist id="pendingCatalogOptions"></datalist>
+          <p id="pendingExistingPreview" class="footnote" style="margin:6px 0 0"></p>
+        </div>
+        <div id="pendingCreateFields" class="resolver-fields" hidden>
+          <div class="modal-grid" style="margin-top:0">
+            <label><span>Novo SKU oficial</span><input id="pendingNewSku" type="text" placeholder="Ex.: KT-AME-0042" /></label>
+            <label><span>Produto</span><input id="pendingNewProduct" type="text" placeholder="Nome oficial do produto" /></label>
+            <label><span>Variação</span><input id="pendingNewVariation" type="text" placeholder="Ex.: Padrão, Nude, 300 ml" /></label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="pendingResolverCancelBtn" type="button" class="secondary">Cancelar</button>
+        <button id="pendingResolverSaveBtn" type="button" class="primary">Salvar e resolver</button>
       </div>
     </div>
   </div>
@@ -1201,6 +1247,88 @@
     setStatus(`O SKU ${sku} voltou a usar o nome vindo dos marketplaces.`,'ok');
   }
 
+
+  function populatePendingCatalogOptions(){
+    const list=$('pendingCatalogOptions');
+    if(!list) return;
+    list.innerHTML='';
+    const rows=[...appState.catalog.values()].sort((a,b)=>String(a.sku).localeCompare(String(b.sku),'pt-BR',{numeric:true}));
+    const frag=document.createDocumentFragment();
+    for(const r of rows){
+      const opt=document.createElement('option');
+      opt.value=r.sku;
+      opt.label=[r.product_name,r.variation_name].filter(Boolean).join(' • ');
+      frag.appendChild(opt);
+    }
+    list.appendChild(frag);
+  }
+  function togglePendingResolveMode(){
+    const create=$('pendingResolveMode').value==='create';
+    $('pendingExistingFields').hidden=create;
+    $('pendingCreateFields').hidden=!create;
+  }
+  function updatePendingExistingPreview(){
+    const sku=normSku($('pendingExistingSku').value);
+    const c=appState.catalog.get(sku);
+    $('pendingExistingPreview').textContent=c ? `${c.product_name}${c.variation_name?' • '+c.variation_name:''}` : (sku ? 'SKU não encontrado no cadastro oficial.' : '');
+  }
+  function openPendingResolver(index){
+    if(!isAdminUser()){ setStatus('Apenas o administrador pode resolver pendências.','error'); return; }
+    const r=appState.pending[index];
+    if(!r) return;
+    $('pendingResolverModal').dataset.pendingIndex=String(index);
+    $('pendingSourceTitle').textContent=`${r.Marketplace} • ${r.SourceSku||r.Identificador}`;
+    $('pendingSourceProduct').textContent=[r.Produto,r.Variacao].filter(Boolean).join(' • ') || 'Sem descrição de produto';
+    $('pendingResolveMode').value='existing';
+    $('pendingExistingSku').value='';
+    $('pendingExistingPreview').textContent='';
+    const source=normSku(r.SourceSku||r.Identificador);
+    $('pendingNewSku').value=/^SEM_SKU_/i.test(source)?'':source;
+    $('pendingNewProduct').value=r.Produto||'';
+    $('pendingNewVariation').value=r.Variacao||'';
+    populatePendingCatalogOptions();
+    togglePendingResolveMode();
+    $('pendingResolverModal').classList.add('show');
+    $('pendingResolverModal').setAttribute('aria-hidden','false');
+    setTimeout(()=>$('pendingExistingSku').focus(),0);
+  }
+  function closePendingResolver(){
+    $('pendingResolverModal').classList.remove('show');
+    $('pendingResolverModal').setAttribute('aria-hidden','true');
+    delete $('pendingResolverModal').dataset.pendingIndex;
+  }
+  async function savePendingResolution(){
+    if(!isAdminUser()) throw new Error('Apenas o administrador pode resolver pendências.');
+    const index=Number($('pendingResolverModal').dataset.pendingIndex);
+    const r=appState.pending[index];
+    if(!r) throw new Error('Pendência não encontrada. Atualize o dashboard e tente novamente.');
+    const source=normSku(r.SourceSku||r.Identificador);
+    if(!source) throw new Error('Não foi possível identificar o SKU de origem.');
+    const mode=$('pendingResolveMode').value;
+    setStatus('Salvando resolução do SKU...','info');
+    if(mode==='existing'){
+      const target=normSku($('pendingExistingSku').value);
+      if(!target) throw new Error('Escolha o SKU oficial que receberá essas vendas.');
+      if(!appState.catalog.has(target)) throw new Error(`O SKU ${target} não existe no cadastro oficial.`);
+      const {error}=await db.rpc('resolve_pending_sku_alias',{p_marketplace:r.Marketplace,p_source_sku:source,p_canonical_sku:target});
+      if(error) throw error;
+      closePendingResolver();
+      await refreshDashboard(false);
+      setStatus(`${source} foi associado ao SKU ${target}.`,'ok');
+    } else {
+      const newSku=normSku($('pendingNewSku').value);
+      const product=$('pendingNewProduct').value.trim();
+      const variation=$('pendingNewVariation').value.trim();
+      if(!newSku) throw new Error('Informe o novo SKU oficial.');
+      if(!product) throw new Error('Informe o nome oficial do produto.');
+      const {error}=await db.rpc('resolve_pending_sku_create',{p_marketplace:r.Marketplace,p_source_sku:source,p_new_sku:newSku,p_product_name:product,p_variation_name:variation});
+      if(error) throw error;
+      closePendingResolver();
+      await refreshDashboard(false);
+      setStatus(`Novo SKU ${newSku} criado e pendência resolvida.`,'ok');
+    }
+  }
+
   function renderSummary() {
     const q=normText($('searchSku').value); const body=$('summaryTable').querySelector('tbody'); body.innerHTML='';
     const sortField=$('sortProducts')?.value||'sales';
@@ -1234,8 +1362,16 @@
   function renderPending() {
     const body=$('pendingTable').querySelector('tbody'); body.innerHTML='';
     if(!appState.pending.length){ body.innerHTML='<tr><td class="empty" colspan="7">Nenhuma pendência de SKU encontrada.</td></tr>'; return; }
+    const admin=isAdminUser();
     const frag=document.createDocumentFragment();
-    for(const r of appState.pending){ const tr=document.createElement('tr'); tr.innerHTML=`<td>${esc(r.Marketplace)}</td><td>${esc(r.Identificador)}</td><td>${esc(r.Produto)}</td><td>${esc(r.Variacao||'')}</td><td class="num">${nf2.format(r.Unidades_vendidas)}</td><td class="sku">${esc(r.SKU_sugerido||'')}</td><td>${esc(r.Motivo)}</td>`; frag.appendChild(tr); }
+    appState.pending.forEach((r,index)=>{
+      const tr=document.createElement('tr');
+      const action=admin
+        ? `<button type="button" class="primary mini pending-action" data-resolve-pending="${index}">Resolver</button>`
+        : '<span class="footnote">Somente administrador</span>';
+      tr.innerHTML=`<td>${esc(r.Marketplace)}</td><td class="pending-sku-code">${esc(r.SourceSku||r.Identificador)}</td><td>${esc(r.Produto)}</td><td>${esc(r.Variacao||'')}</td><td class="num"><strong>${nf2.format(r.Unidades_vendidas)}</strong></td><td>${esc(r.Motivo)}</td><td>${action}</td>`;
+      frag.appendChild(tr);
+    });
     body.appendChild(frag);
   }
   function renderAll() {
@@ -1322,7 +1458,7 @@
     XLSX.utils.book_append_sheet(wb,ws,'Resumo_SKU');
     const wp=XLSX.utils.json_to_sheet(appState.pending.length?appState.pending:[{Informacao:'Nenhuma pendência de SKU encontrada.'}]);
     XLSX.utils.book_append_sheet(wb,wp,'Pendencias_SKU');
-    const wr=XLSX.utils.aoa_to_sheet([['Parâmetro','Valor'],['Início',fmtDate(appState.metrics.start)],['Fim',fmtDate(appState.metrics.end)],['Dias selecionados',appState.metrics.days],['Linhas no período',appState.metrics.rows],['SKUs identificados',appState.metrics.distinctSkus],['Unidades sem SKU',appState.metrics.pendingUnits],['Amazon','Vendas calculadas pelo relatório Todos os pedidos usando purchase-date, quantity e status. Business Report é somente conferência e não entra na soma.'],['Droga Raia / Magazine Luiza / Beleza na Web','Cada Item Sku N é processado separadamente; * é removido do SKU; pedidos cancelados não contam.'],['Regra da sugestão','Total considerado no período selecionado × 1,15 (15% adicional). O estoque é apenas informativo.']]);
+    const wr=XLSX.utils.aoa_to_sheet([['Parâmetro','Valor'],['Início',fmtDate(appState.metrics.start)],['Fim',fmtDate(appState.metrics.end)],['Dias selecionados',appState.metrics.days],['Linhas no período',appState.metrics.rows],['SKUs identificados',appState.metrics.distinctSkus],['Unidades com SKU pendente',appState.metrics.pendingUnits],['Amazon','Vendas calculadas pelo relatório Todos os pedidos usando purchase-date, quantity e status. Business Report é somente conferência e não entra na soma.'],['Droga Raia / Magazine Luiza / Beleza na Web','Cada Item Sku N é processado separadamente; * é removido do SKU; pedidos cancelados não contam.'],['Regra da sugestão','Total considerado no período selecionado × 1,15 (15% adicional). O estoque é apenas informativo.']]);
     XLSX.utils.book_append_sheet(wb,wr,'Config');
     const bytes=XLSX.write(wb,{bookType:'xlsx',type:'array'});
     const result=await saveBlob(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),'relatorio_vendas_por_sku.xlsx','Excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',['.xlsx']);
@@ -1629,7 +1765,7 @@
         .then(pend=>{
           // Ignora resposta antiga se o usuario ja mudou o periodo.
           if($('dashboardStartDate').value!==start || $('dashboardEndDate').value!==end) return;
-          const pending=(pend||[]).map(r=>({Marketplace:r.marketplace,Identificador:r.identificador,Produto:r.produto||'',Variacao:cleanVariationLabel(r.variacao||''),VariacaoOrigem:r.variacao||'',Unidades_vendidas:Number(r.unidades_vendidas||0),SKU_sugerido:'',Motivo:'SKU ausente no arquivo de origem'}));
+          const pending=(pend||[]).map(r=>({Marketplace:r.marketplace,Identificador:r.identificador,SourceSku:r.source_sku||r.identificador,CanonicalSku:r.canonical_sku||'',Produto:r.produto||'',Variacao:cleanVariationLabel(r.variacao||''),VariacaoOrigem:r.variacao||'',Unidades_vendidas:Number(r.unidades_vendidas||0),Motivo:r.motivo||'SKU não encontrado no cadastro'}));
           appState.pending=pending;
           appState.metrics.pendingUnits=pending.reduce((s,r)=>s+r.Unidades_vendidas,0);
           $('mPending').textContent=nf0.format(appState.metrics.pendingUnits);
@@ -1736,11 +1872,21 @@
   $('xlsxBtn').addEventListener('click',async()=>{try{await exportXLSX();}catch(e){console.error(e);setStatus(e?.message||String(e),'error');}});
   $('refreshHistoryBtn').addEventListener('click',loadImportHistory);
   $('summaryTable').querySelector('tbody').addEventListener('click',e=>{ const btn=e.target.closest('button[data-edit-product]'); if(btn) openProductEditor(btn.dataset.editProduct); });
+  $('pendingTable').querySelector('tbody').addEventListener('click',e=>{ const btn=e.target.closest('button[data-resolve-pending]'); if(btn) openPendingResolver(Number(btn.dataset.resolvePending)); });
+  $('pendingResolveMode').addEventListener('change',togglePendingResolveMode);
+  $('pendingExistingSku').addEventListener('input',updatePendingExistingPreview);
+  $('pendingResolverCancelBtn').addEventListener('click',closePendingResolver);
+  $('pendingResolverSaveBtn').addEventListener('click',async()=>{try{await savePendingResolution();}catch(e){console.error(e);setStatus(e?.message||String(e),'error');}});
+  $('pendingResolverModal').addEventListener('click',e=>{ if(e.target===$('pendingResolverModal')) closePendingResolver(); });
   $('catalogCancelBtn').addEventListener('click',closeProductEditor);
   $('catalogSaveBtn').addEventListener('click',async()=>{try{await saveProductEditor();}catch(e){console.error(e);setStatus(e?.message||String(e),'error');}});
   $('catalogResetBtn').addEventListener('click',async()=>{try{await resetProductEditor();}catch(e){console.error(e);setStatus(e?.message||String(e),'error');}});
   $('productModal').addEventListener('click',e=>{ if(e.target===$('productModal')) closeProductEditor(); });
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('productModal').classList.contains('show')) closeProductEditor(); });
+  document.addEventListener('keydown',e=>{
+    if(e.key!=='Escape') return;
+    if($('pendingResolverModal').classList.contains('show')) closePendingResolver();
+    else if($('productModal').classList.contains('show')) closeProductEditor();
+  });
   $('loginBtn').addEventListener('click',login);
   $('logoutBtn').addEventListener('click',logout);
   $('authPassword').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
