@@ -1479,7 +1479,9 @@
     // aparentemente valido, porem truncado, em periodos com muitos SKUs.
     const {data,error}=await db.rpc('get_sales_summary_payload_v3',args);
     if(error){
-      throw new Error('Consulta completa do resumo nao instalada no Supabase. Execute o arquivo fix_resumo_periodo_v3.sql no SQL Editor e atualize a pagina. Detalhe: '+(error.message||error));
+      const msg=error.message||String(error);
+      if(/statement timeout|canceling statement/i.test(msg)) throw new Error('A consulta principal do resumo atingiu o limite de tempo do Supabase. Detalhe: '+msg);
+      throw new Error('Consulta completa do resumo nao disponivel no Supabase. Detalhe: '+msg);
     }
     const first=Array.isArray(data)?data[0]:data;
     if(!first || typeof first!=='object'){
@@ -1506,11 +1508,15 @@
     if(start>end){ setStatus('A Data inicial não pode ser maior que a Data final.','warn'); return; }
     try{
       if(showStatus)setStatus('Atualizando dashboard salvo...','info');
-      const [sum,pend,catalog]=await Promise.all([
+
+      // O resumo principal nao deve depender da consulta de pendencias.
+      // Se get_pending_skus ficar pesada ou atingir timeout, a tabela principal
+      // continua sendo exibida normalmente.
+      const [sum,catalog]=await Promise.all([
         fetchSummaryRows(start,end,$('searchSku').value),
-        fetchAllRpcRows('get_pending_skus',{p_start:start,p_end:end}),
         loadProductCatalog()
       ]);
+
       let stock=null; const sf=$('stockFile').files[0]; if(sf) stock=await readStock(sf);
       const summary=(sum||[]).map(r=>({
         SKU:r.sku, Produto:r.produto||'', Variacao:r.variacao||'',
@@ -1520,14 +1526,37 @@
       appState.catalogByVariation=buildCatalogVariationIndex(catalog);
       applyProductCatalog(summary,catalog);
       applyStock(summary,stock);
-      const pending=(pend||[]).map(r=>({Marketplace:r.marketplace,Identificador:r.identificador,Produto:r.produto||'',Variacao:cleanVariationLabel(r.variacao||''),VariacaoOrigem:r.variacao||'',Unidades_vendidas:Number(r.unidades_vendidas||0),SKU_sugerido:'',Motivo:'SKU ausente no arquivo de origem'}));
+
       const sDate=parseDbDate(start), eDate=parseDbDate(end), days=Math.floor((eDate-sDate)/86400000)+1;
-      appState.summary=summary; appState.pending=pending; appState.stock=stock; appState.hasStock=stock instanceof Map;
-      appState.metrics={start:sDate,end:eDate,days,rows:summary.length,distinctSkus:summary.filter(r=>!r.SKU_Pendente).length,pendingUnits:pending.reduce((s,r)=>s+r.Unidades_vendidas,0),netUnits:summary.reduce((s,r)=>s+r.Total_Liquido,0)};
+      appState.summary=summary; appState.pending=[]; appState.stock=stock; appState.hasStock=stock instanceof Map;
+      appState.metrics={start:sDate,end:eDate,days,rows:summary.length,distinctSkus:summary.filter(r=>!r.SKU_Pendente).length,pendingUnits:0,netUnits:summary.reduce((s,r)=>s+r.Total_Liquido,0)};
       console.info('[Dashboard] periodo',start,'a',end,'SKUs carregados:',summary.length);
       renderAll();
+      $('mPending').textContent='…';
       $('summaryCaption').textContent=`${fmtDate(sDate)} a ${fmtDate(eDate)} • dados salvos no Supabase`;
       if(showStatus)setStatus(`Dashboard atualizado: ${nf0.format(appState.metrics.netUnits)} unidades consideradas e ${nf0.format(summary.reduce((s,r)=>s+r.Pedido_Sugerido,0))} sugeridas para compra.`,'ok');
+
+      // Pendencias carregam depois e nunca bloqueiam o resumo.
+      const pendingBody=$('pendingTable')?.querySelector('tbody');
+      if(pendingBody) pendingBody.innerHTML='<tr><td class="empty" colspan="7">Carregando pendências...</td></tr>';
+      fetchAllRpcRows('get_pending_skus',{p_start:start,p_end:end})
+        .then(pend=>{
+          // Ignora resposta antiga se o usuario ja mudou o periodo.
+          if($('dashboardStartDate').value!==start || $('dashboardEndDate').value!==end) return;
+          const pending=(pend||[]).map(r=>({Marketplace:r.marketplace,Identificador:r.identificador,Produto:r.produto||'',Variacao:cleanVariationLabel(r.variacao||''),VariacaoOrigem:r.variacao||'',Unidades_vendidas:Number(r.unidades_vendidas||0),SKU_sugerido:'',Motivo:'SKU ausente no arquivo de origem'}));
+          appState.pending=pending;
+          appState.metrics.pendingUnits=pending.reduce((s,r)=>s+r.Unidades_vendidas,0);
+          $('mPending').textContent=nf0.format(appState.metrics.pendingUnits);
+          renderPending();
+        })
+        .catch(e=>{
+          console.warn('Pendencias de SKU:',e);
+          if($('dashboardStartDate').value!==start || $('dashboardEndDate').value!==end) return;
+          appState.pending=[];
+          appState.metrics.pendingUnits=0;
+          $('mPending').textContent='—';
+          if(pendingBody) pendingBody.innerHTML='<tr><td class="empty" colspan="7">Pendências não carregadas agora. O resumo principal continua disponível.</td></tr>';
+        });
     }catch(e){ console.error(e); setStatus(`Erro ao carregar o dashboard: ${e?.message||e}`,'error'); }
   }
 
