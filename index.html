@@ -85,9 +85,16 @@
     td { padding: 10px 12px; border-bottom: 1px solid #edf1f5; vertical-align: top; }
     tr:hover td { background: #fafcff; }
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-    th.marketplace-col { text-align:center; padding:8px 6px; min-width:58px; }
-    .head-logo { width:34px; height:34px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; background:#fff; border:1px solid #d9e2ec; box-shadow:0 1px 2px rgba(16,24,40,.06); overflow:hidden; }
-    .head-logo img { width:24px; height:24px; object-fit:contain; display:block; }
+    th.marketplace-col { text-align:center; padding:8px 6px; min-width:60px; }
+    .head-logo { width:34px; height:34px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:900; line-height:1; letter-spacing:.02em; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+    .head-logo.tt { background:#111827; color:#fff; }
+    .head-logo.ml { background:#ffe600; color:#111827; }
+    .head-logo.sp { background:#ee4d2d; color:#fff; }
+    .head-logo.sh { background:#111827; color:#fff; }
+    .head-logo.amz { background:#232f3e; color:#fff; }
+    .head-logo.dr { background:#c62828; color:#fff; }
+    .head-logo.mag { background:#0d6efd; color:#fff; }
+    .head-logo.blz { background:#7c3aed; color:#fff; }
     .sku { font-weight: 800; white-space: nowrap; }
     .pending-row td { background: #fff7ed; }
     .pill { display: inline-flex; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
@@ -130,8 +137,7 @@
     .market-update.ok { background:#f6fffa; border-color:#c7ead6; }
     .market-update.stale { background:#fff8f7; border-color:#f4c7c3; }
     .market-left { display:flex; align-items:center; gap:10px; min-width:0; }
-    .market-logo { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #d9e2ec; box-shadow:0 1px 2px rgba(16,24,40,.06); overflow:hidden; flex:0 0 auto; }
-    .market-logo img { width:24px; height:24px; object-fit:contain; display:block; }
+    .market-logo { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; color:#fff; flex:0 0 auto; }
     .market-meta { min-width:0; }
     .market-name { font-size:13px; font-weight:800; line-height:1.2; }
     .market-date { font-size:11px; color:var(--muted); margin-top:3px; line-height:1.25; }
@@ -311,7 +317,7 @@
           <thead><tr>
             <th>SKU</th><th>Produto</th><th>Variação</th>
             <th class="num">Total</th><th class="num">Sugestão</th><th class="num">Média/dia</th><th class="num">Estoque</th>
-            <th class="num marketplace-col" title="TikTok" aria-label="TikTok"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.tiktok.com" alt="TikTok" referrerpolicy="no-referrer" decoding="async" fetchpriority="low" /></span></th><th class="num marketplace-col" title="Mercado Livre" aria-label="Mercado Livre"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.mercadolivre.com.br" alt="Mercado Livre" referrerpolicy="no-referrer" decoding="async" fetchpriority="low" /></span></th><th class="num marketplace-col" title="Shopee" aria-label="Shopee"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://shopee.com.br" alt="Shopee" referrerpolicy="no-referrer" decoding="async" fetchpriority="low" /></span></th><th class="num marketplace-col" title="SHEIN" aria-label="SHEIN"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://br.shein.com" alt="SHEIN" referrerpolicy="no-referrer" decoding="async" fetchpriority="low" /></span></th><th class="num marketplace-col" title="Amazon" aria-label="Amazon"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.amazon.com.br" alt="Amazon" referrerpolicy="no-referrer" decoding="async" fetchpriority="low" /></span></th><th class="num marketplace-col" title="Droga Raia" aria-label="Droga Raia"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.drogaraia.com.br" alt="Droga Raia" referrerpolicy="no-referrer" decoding="async" fetchpriority="low" /></span></th><th class="num marketplace-col" title="Magazine Luiza" aria-label="Magazine Luiza"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.magazineluiza.com.br" alt="Magazine Luiza" referrerpolicy="no-referrer" decoding="async" fetchpriority="low" /></span></th><th class="num marketplace-col" title="Beleza na Web" aria-label="Beleza na Web"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.belezanaweb.com.br" alt="Beleza na Web" referrerpolicy="no-referrer" decoding="async" fetchpriority="low" /></span></th><th>SKU pendente?</th><th id="productEditHeader" style="display:none">Padronização</th>
+            <th class="num marketplace-col" title="TikTok" aria-label="TikTok"><span class="head-logo tt">TT</span></th><th class="num marketplace-col" title="Mercado Livre" aria-label="Mercado Livre"><span class="head-logo ml">ML</span></th><th class="num marketplace-col" title="Shopee" aria-label="Shopee"><span class="head-logo sp">SP</span></th><th class="num marketplace-col" title="SHEIN" aria-label="SHEIN"><span class="head-logo sh">SH</span></th><th class="num marketplace-col" title="Amazon" aria-label="Amazon"><span class="head-logo amz">AMZ</span></th><th class="num marketplace-col" title="Droga Raia" aria-label="Droga Raia"><span class="head-logo dr">DR</span></th><th class="num marketplace-col" title="Magazine Luiza" aria-label="Magazine Luiza"><span class="head-logo mag">MGL</span></th><th class="num marketplace-col" title="Beleza na Web" aria-label="Beleza na Web"><span class="head-logo blz">BLZ</span></th><th>SKU pendente?</th><th id="productEditHeader" style="display:none">Padronização</th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -385,14 +391,14 @@
   let dashboardDefaultsUserId = null;
 
   const MARKETPLACE_UPDATE_CONFIG = [
-    { key:'TikTok', label:'TikTok', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.tiktok.com' },
-    { key:'Mercado Livre', label:'Mercado Livre', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.mercadolivre.com.br' },
-    { key:'Shopee', label:'Shopee', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://shopee.com.br' },
-    { key:'SHEIN', label:'SHEIN', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://br.shein.com' },
-    { key:'Amazon', label:'Amazon', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.amazon.com.br' },
-    { key:'Droga Raia', label:'Droga Raia', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.drogaraia.com.br' },
-    { key:'Magazine Luiza', label:'Magazine Luiza', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.magazineluiza.com.br' },
-    { key:'Beleza na Web', label:'Beleza na Web', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.belezanaweb.com.br' }
+    { key:'TikTok', label:'TikTok', short:'TT', color:'#111827', text:'#ffffff' },
+    { key:'Mercado Livre', label:'Mercado Livre', short:'ML', color:'#ffe600', text:'#111827' },
+    { key:'Shopee', label:'Shopee', short:'SP', color:'#ee4d2d', text:'#ffffff' },
+    { key:'SHEIN', label:'SHEIN', short:'SH', color:'#111827', text:'#ffffff' },
+    { key:'Amazon', label:'Amazon', short:'AMZ', color:'#232f3e', text:'#ffffff' },
+    { key:'Droga Raia', label:'Droga Raia', short:'DR', color:'#c62828', text:'#ffffff' },
+    { key:'Magazine Luiza', label:'Magazine Luiza', short:'MGL', color:'#0d6efd', text:'#ffffff' },
+    { key:'Beleza na Web', label:'Beleza na Web', short:'BLZ', color:'#7c3aed', text:'#ffffff' }
   ];
 
   const $ = id => document.getElementById(id);
@@ -639,7 +645,7 @@
       const ok = !!(updatedAt && latestGlobal && sameCalendarDay(updatedAt, latestGlobal));
       const wrap=document.createElement('div');
       wrap.className=`market-update ${ok ? 'ok' : 'stale'}`;
-      wrap.innerHTML=`<div class="market-left"><div class="market-logo"><img src="${esc(item.logoUrl)}" alt="${esc(item.label)}" referrerpolicy="no-referrer" /></div><div class="market-meta"><div class="market-name">${esc(item.label)}</div><div class="market-date">${updatedAt ? `Atualizado em ${esc(formatDateTime(updatedAt))}` : 'Sem planilha importada'}</div></div></div><div class="market-status ${ok ? 'ok' : 'stale'}" title="${ok ? 'Atualizado no mesmo dia da última importação geral' : 'Ainda não atualizado no mesmo dia da última importação geral'}">${ok ? '✓' : '✕'}</div>`;
+      wrap.innerHTML=`<div class="market-left"><div class="market-logo" style="background:${item.color};color:${item.text};">${esc(item.short)}</div><div class="market-meta"><div class="market-name">${esc(item.label)}</div><div class="market-date">${updatedAt ? `Atualizado em ${esc(formatDateTime(updatedAt))}` : 'Sem planilha importada'}</div></div></div><div class="market-status ${ok ? 'ok' : 'stale'}" title="${ok ? 'Atualizado no mesmo dia da última importação geral' : 'Ainda não atualizado no mesmo dia da última importação geral'}">${ok ? '✓' : '✕'}</div>`;
       frag.appendChild(wrap);
     }
     grid.innerHTML='';
@@ -1371,11 +1377,9 @@
       let imported=0, skipped=0, totalRows=0;
       for(const job of jobs){ const r=await job(); if(r.skipped) skipped++; else { imported++; totalRows+=r.rows||0; } }
       clearFileInputs();
-      // Depois da importacao, atualiza as tres areas em paralelo. O status e o
-      // historico nao precisam esperar o resumo terminar.
+      await loadImportHistory();
+      await loadMarketplaceUpdates();
       await loadAvailableRange(false);
-      loadMarketplaceUpdates().catch(console.warn);
-      loadImportHistory().catch(console.warn);
       await refreshDashboard(false);
       setStatus(`Importação concluída: ${imported} arquivo(s) salvo(s), ${skipped} duplicado(s) ignorado(s), ${nf0.format(totalRows)} linhas novas.`,'ok');
     }catch(e){ console.error(e); setStatus(e?.message||String(e),'error'); }
@@ -1549,10 +1553,7 @@
       setStatus('Excluindo importação...','info');
       if(path){ const {error:storageError}=await db.storage.from('marketplace-files').remove([path]); if(storageError) console.warn(storageError); }
       const {error}=await db.from('imports').delete().eq('id',id); if(error) throw error;
-      await loadAvailableRange(false);
-      loadMarketplaceUpdates().catch(console.warn);
-      loadImportHistory().catch(console.warn);
-      await refreshDashboard(false);
+      await loadImportHistory(); await loadMarketplaceUpdates(); await loadAvailableRange(false); await refreshDashboard(false);
       setStatus('Importação excluída.','ok');
     }catch(e){ console.error(e); setStatus(e?.message||String(e),'error'); }
   }
@@ -1578,11 +1579,9 @@
     try{
       const shouldSetDashboardDefault = dashboardDefaultsUserId !== currentUser.id;
       if(shouldSetDashboardDefault) dashboardDefaultsUserId = currentUser.id;
-      // Primeiro resolve somente o intervalo disponivel. Em seguida, dashboard,
-      // status das planilhas e historico iniciam juntos e nenhum bloqueia o outro.
       await loadAvailableRange(shouldSetDashboardDefault);
-      loadMarketplaceUpdates().catch(console.warn);
-      if(admin) loadImportHistory().catch(console.warn);
+      await loadMarketplaceUpdates();
+      if(admin) await loadImportHistory();
       await refreshDashboard(false);
     }
     catch(e){ console.error(e); setStatus(`O login funcionou, mas houve erro ao carregar os dados: ${e?.message||e}`,'error'); }
