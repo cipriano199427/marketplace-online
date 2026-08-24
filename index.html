@@ -164,6 +164,22 @@
     .pending-sku-code { font-weight:800; white-space:nowrap; }
     .modal-actions { display:flex; justify-content:flex-end; gap:9px; flex-wrap:wrap; margin-top:18px; }
     .edit-name-btn { white-space:nowrap; }
+    .pending-scan-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .match-suggestion { min-width:210px; }
+    .match-suggestion strong { display:block; color:var(--text); }
+    .match-score { display:inline-flex; margin-top:4px; padding:2px 7px; border-radius:999px; font-size:10px; font-weight:900; }
+    .match-score.high { background:#dcfce7; color:#166534; }
+    .match-score.medium { background:#fef3c7; color:#92400e; }
+    .match-score.low { background:#f1f5f9; color:#475569; }
+    .match-candidates { margin-top:14px; border-top:1px solid var(--line); padding-top:14px; }
+    .match-candidates[hidden] { display:none !important; }
+    .match-candidate-list { display:grid; gap:8px; margin-top:8px; max-height:260px; overflow:auto; }
+    .match-candidate { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center; border:1px solid var(--line); border-radius:12px; padding:10px 12px; background:#fbfdff; }
+    .match-candidate-main { min-width:0; }
+    .match-candidate-sku { font-weight:900; }
+    .match-candidate-name { color:var(--muted); font-size:12px; margin-top:3px; line-height:1.35; }
+    .match-review { margin-top:12px; padding:12px 14px; border:1px solid #cde0f0; background:#eef5fb; border-radius:12px; }
+    .match-review strong { display:block; margin-bottom:4px; }
 
   </style>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -340,10 +356,13 @@
           <h2>4. Pendências de SKU</h2>
           <p class="footnote" style="margin:4px 0 0">Todo SKU vendido que não estiver no cadastro oficial e não tiver uma associação válida aparece aqui.</p>
         </div>
+        <div class="pending-scan-actions">
+          <button id="scanPendingSuggestionsBtn" type="button" class="secondary" style="display:none">Verificar possíveis correspondências</button>
+        </div>
       </div>
       <div class="table-wrap" style="max-height:460px">
         <table id="pendingTable">
-          <thead><tr><th>Marketplace</th><th>SKU de origem</th><th>Produto</th><th>Variação</th><th class="num">Unidades</th><th>Motivo</th><th>Ação</th></tr></thead>
+          <thead><tr><th>Marketplace</th><th>SKU de origem</th><th>Produto</th><th>Variação</th><th class="num">Unidades</th><th>Possível correspondência</th><th>Motivo</th><th>Ação</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -405,6 +424,13 @@
           <label><span>SKU oficial existente</span><input id="pendingExistingSku" type="text" list="pendingCatalogOptions" placeholder="Digite ou escolha um SKU existente" autocomplete="off" /></label>
           <datalist id="pendingCatalogOptions"></datalist>
           <p id="pendingExistingPreview" class="footnote" style="margin:6px 0 0"></p>
+          <div style="margin-top:10px"><button id="findPendingMatchesBtn" type="button" class="secondary mini">Buscar possíveis correspondências</button></div>
+          <div id="pendingMatchCandidates" class="match-candidates" hidden>
+            <strong>Possíveis correspondências no catálogo</strong>
+            <p class="footnote" style="margin:3px 0 0">São apenas sugestões. Clique em “Usar este SKU” para preencher a associação e confira antes de confirmar.</p>
+            <div id="pendingMatchCandidateList" class="match-candidate-list"></div>
+          </div>
+          <div id="pendingMatchReview" class="match-review" hidden></div>
         </div>
         <div id="pendingCreateFields" class="resolver-fields" hidden>
           <div class="modal-grid" style="margin-top:0">
@@ -416,7 +442,7 @@
       </div>
       <div class="modal-actions">
         <button id="pendingResolverCancelBtn" type="button" class="secondary">Cancelar</button>
-        <button id="pendingResolverSaveBtn" type="button" class="primary">Salvar e resolver</button>
+        <button id="pendingResolverSaveBtn" type="button" class="primary">Confirmar associação</button>
       </div>
     </div>
   </div>
@@ -435,7 +461,7 @@
 
 
   const PT_MONTHS = { janeiro:1, fevereiro:2, marco:3, abril:4, maio:5, junho:6, julho:7, agosto:8, setembro:9, outubro:10, novembro:11, dezembro:12 };
-  let appState = { summary: [], pending: [], base: [], metrics: null, stock: null, hasStock: false, catalog: new Map(), catalogByVariation: new Map(), loadedSearch: '' };
+  let appState = { summary: [], pending: [], base: [], metrics: null, stock: null, hasStock: false, catalog: new Map(), catalogByVariation: new Map(), catalogMatchIndex: [], loadedSearch: '' };
   let dashboardAvailableMin = null;
   let dashboardAvailableMax = null;
   let dashboardPeriodMode = '15';
@@ -1229,6 +1255,7 @@
     if(error) throw error;
     appState.catalog.set(sku,{sku,product_name:product,variation_name:variation});
     appState.catalogByVariation=buildCatalogVariationIndex(appState.catalog);
+    appState.catalogMatchIndex=[];
     const r=appState.summary.find(x=>x.SKU===sku);
     if(r){ r.Produto=product; r.Variacao=variation; r.NomePadronizado=true; }
     closeProductEditor(); renderSummary();
@@ -1242,6 +1269,7 @@
     if(error) throw error;
     appState.catalog.delete(sku);
     appState.catalogByVariation=buildCatalogVariationIndex(appState.catalog);
+    appState.catalogMatchIndex=[];
     closeProductEditor();
     await refreshDashboard(false);
     setStatus(`O SKU ${sku} voltou a usar o nome vindo dos marketplaces.`,'ok');
@@ -1266,13 +1294,154 @@
     const create=$('pendingResolveMode').value==='create';
     $('pendingExistingFields').hidden=create;
     $('pendingCreateFields').hidden=!create;
+    $('pendingResolverSaveBtn').textContent=create?'Criar e resolver':'Confirmar associação';
   }
   function updatePendingExistingPreview(){
     const sku=normSku($('pendingExistingSku').value);
     const c=appState.catalog.get(sku);
     $('pendingExistingPreview').textContent=c ? `${c.product_name}${c.variation_name?' • '+c.variation_name:''}` : (sku ? 'SKU não encontrado no cadastro oficial.' : '');
   }
-  function openPendingResolver(index){
+
+  function skuComparable(value){
+    return normSku(value)
+      .replace(/KTFBA/g,'KT')
+      .replace(/BRAEDBA/g,'BRAE')
+      .replace(/BRAEFBA/g,'BRAE')
+      .replace(/(?:^|[-_])(FBA|DBA)(?=[-_]|$)/g,'-')
+      .replace(/(?:^|[-_])(VARIACAO|VARIAÇÃO)(?=[-_]|$)/g,'-')
+      .replace(/[^A-Z0-9]/g,'');
+  }
+  function diceSimilarity(a,b){
+    a=String(a||''); b=String(b||'');
+    if(!a || !b) return 0;
+    if(a===b) return 1;
+    if(a.length<2 || b.length<2) return a===b?1:0;
+    const counts=new Map();
+    for(let i=0;i<a.length-1;i++){ const p=a.slice(i,i+2); counts.set(p,(counts.get(p)||0)+1); }
+    let hits=0;
+    for(let i=0;i<b.length-1;i++){ const p=b.slice(i,i+2), n=counts.get(p)||0; if(n>0){ hits++; counts.set(p,n-1); } }
+    return (2*hits)/((a.length-1)+(b.length-1));
+  }
+  function matchTokens(value){
+    return new Set(catalogMatchProductText(value).split(' ').filter(x=>x.length>1));
+  }
+  function tokenSimilarity(aSet,bSet){
+    if(!aSet.size || !bSet.size) return 0;
+    let inter=0; for(const x of aSet) if(bSet.has(x)) inter++;
+    if(!inter) return 0;
+    const containment=inter/Math.min(aSet.size,bSet.size);
+    const union=aSet.size+bSet.size-inter;
+    return containment*.72+(union?inter/union:0)*.28;
+  }
+  function ensureCatalogMatchIndex(){
+    if(appState.catalogMatchIndex.length===appState.catalog.size && appState.catalogMatchIndex.length) return appState.catalogMatchIndex;
+    appState.catalogMatchIndex=[...appState.catalog.values()].map(c=>({
+      ...c,
+      skuKey:skuComparable(c.sku),
+      productTokens:matchTokens(c.product_name||''),
+      variationKey:normText(cleanVariationLabel(c.variation_name||''))
+    }));
+    return appState.catalogMatchIndex;
+  }
+  function pendingMatchCandidates(r,limit=5){
+    const catalog=ensureCatalogMatchIndex();
+    const sourceSku=skuComparable(r.SourceSku||r.Identificador);
+    const sourceTokens=matchTokens(r.Produto||'');
+    const sourceVariation=normText(cleanVariationLabel(r.Variacao||''));
+    const scored=[];
+    for(const c of catalog){
+      const skuScore=diceSimilarity(sourceSku,c.skuKey);
+      const productScore=tokenSimilarity(sourceTokens,c.productTokens);
+      let variationScore=0;
+      if(sourceVariation && c.variationKey){
+        if(sourceVariation===c.variationKey) variationScore=1;
+        else if(sourceVariation.includes(c.variationKey)||c.variationKey.includes(sourceVariation)) variationScore=.72;
+      } else if(!sourceVariation || isGenericVariation(sourceVariation)) variationScore=.28;
+      const productWeighted=productScore*.68+variationScore*.22+skuScore*.10;
+      const skuWeighted=skuScore*.62+productScore*.33+variationScore*.05;
+      let score=Math.max(productWeighted,skuWeighted);
+      if(productScore>.94 && variationScore===1) score=Math.max(score,.96);
+      if(skuScore>.92 && productScore>.55) score=Math.max(score,.91);
+      if(score<.43) continue;
+      const signals=[];
+      if(skuScore>=.80) signals.push('SKU parecido');
+      if(productScore>=.72) signals.push('produto parecido');
+      if(variationScore===1) signals.push('variação igual');
+      scored.push({...c,score,skuScore,productScore,variationScore,reason:signals.join(' + ')||'similaridade parcial'});
+    }
+    scored.sort((a,b)=>b.score-a.score || b.productScore-a.productScore || b.skuScore-a.skuScore || String(a.sku).localeCompare(String(b.sku),'pt-BR',{numeric:true}));
+    return scored.slice(0,limit);
+  }
+  function matchConfidence(score){
+    if(score>=.86) return {label:'Alta',cls:'high'};
+    if(score>=.68) return {label:'Média',cls:'medium'};
+    return {label:'Baixa',cls:'low'};
+  }
+  function setPendingSuggestion(index,candidate){
+    const r=appState.pending[index];
+    if(!r) return;
+    r.MatchCandidates=candidate?[candidate]:[];
+    r.MatchSuggestion=candidate||null;
+  }
+  function choosePendingMatch(index,sku){
+    const r=appState.pending[index];
+    if(!r) return;
+    const candidate=(r.MatchCandidates||pendingMatchCandidates(r,5)).find(c=>normSku(c.sku)===normSku(sku));
+    $('pendingResolveMode').value='existing';
+    togglePendingResolveMode();
+    $('pendingExistingSku').value=sku;
+    updatePendingExistingPreview();
+    const c=appState.catalog.get(normSku(sku));
+    const review=$('pendingMatchReview');
+    review.hidden=false;
+    review.innerHTML=`<strong>Você está prestes a vincular:</strong>${esc(r.Marketplace)} • <b>${esc(r.SourceSku||r.Identificador)}</b> → <b>${esc(sku)}</b><br><span class="footnote">${esc(c?.product_name||candidate?.product_name||'')}${(c?.variation_name||candidate?.variation_name)?' • '+esc(c?.variation_name||candidate?.variation_name):''}</span>`;
+  }
+  function renderPendingMatchCandidates(index,candidates){
+    const box=$('pendingMatchCandidates'), list=$('pendingMatchCandidateList');
+    list.innerHTML='';
+    if(!candidates.length){
+      box.hidden=false;
+      list.innerHTML='<div class="footnote">Nenhuma correspondência com confiança mínima foi encontrada. Você ainda pode pesquisar manualmente ou criar um SKU novo.</div>';
+      return;
+    }
+    box.hidden=false;
+    const frag=document.createDocumentFragment();
+    for(const c of candidates){
+      const conf=matchConfidence(c.score);
+      const row=document.createElement('div'); row.className='match-candidate';
+      row.innerHTML=`<div class="match-candidate-main"><div class="match-candidate-sku">${esc(c.sku)} <span class="match-score ${conf.cls}">${conf.label} • ${Math.round(c.score*100)}%</span></div><div class="match-candidate-name">${esc(c.product_name||'')}${c.variation_name?' • '+esc(c.variation_name):''}<br>${esc(c.reason||'')}</div></div><button type="button" class="secondary mini" data-use-pending-match="${esc(c.sku)}">Usar este SKU</button>`;
+      frag.appendChild(row);
+    }
+    list.appendChild(frag);
+  }
+  function findMatchesForPending(index,openModal=true){
+    const r=appState.pending[index];
+    if(!r) return [];
+    const candidates=pendingMatchCandidates(r,5);
+    r.MatchCandidates=candidates;
+    r.MatchSuggestion=candidates[0]||null;
+    if(openModal) renderPendingMatchCandidates(index,candidates);
+    return candidates;
+  }
+  async function scanAllPendingSuggestions(){
+    if(!isAdminUser()){ setStatus('Apenas o administrador pode verificar correspondências.','error'); return; }
+    if(!appState.pending.length){ setStatus('Não há pendências para verificar.','info'); return; }
+    const btn=$('scanPendingSuggestionsBtn');
+    btn.disabled=true;
+    const old=btn.textContent;
+    setStatus(`Verificando ${nf0.format(appState.pending.length)} pendência(s) contra o catálogo oficial...`,'info');
+    try{
+      ensureCatalogMatchIndex();
+      for(let i=0;i<appState.pending.length;i++){
+        findMatchesForPending(i,false);
+        if(i%20===19){ btn.textContent=`Verificando ${i+1}/${appState.pending.length}...`; await new Promise(resolve=>setTimeout(resolve,0)); }
+      }
+      renderPending();
+      const found=appState.pending.filter(r=>r.MatchSuggestion).length;
+      setStatus(`${nf0.format(found)} de ${nf0.format(appState.pending.length)} pendência(s) receberam uma sugestão. Nenhum vínculo foi salvo; use “Conferir” antes de confirmar.`,'ok');
+    } finally { btn.disabled=false; btn.textContent=old; }
+  }
+  function openPendingResolver(index,preselectedSku=''){
     if(!isAdminUser()){ setStatus('Apenas o administrador pode resolver pendências.','error'); return; }
     const r=appState.pending[index];
     if(!r) return;
@@ -1282,6 +1451,10 @@
     $('pendingResolveMode').value='existing';
     $('pendingExistingSku').value='';
     $('pendingExistingPreview').textContent='';
+    $('pendingMatchCandidates').hidden=true;
+    $('pendingMatchCandidateList').innerHTML='';
+    $('pendingMatchReview').hidden=true;
+    $('pendingMatchReview').innerHTML='';
     const source=normSku(r.SourceSku||r.Identificador);
     $('pendingNewSku').value=/^SEM_SKU_/i.test(source)?'':source;
     $('pendingNewProduct').value=r.Produto||'';
@@ -1290,7 +1463,13 @@
     togglePendingResolveMode();
     $('pendingResolverModal').classList.add('show');
     $('pendingResolverModal').setAttribute('aria-hidden','false');
-    setTimeout(()=>$('pendingExistingSku').focus(),0);
+    if(preselectedSku){
+      $('pendingExistingSku').value=preselectedSku;
+      updatePendingExistingPreview();
+      if(r.MatchCandidates?.length) renderPendingMatchCandidates(index,r.MatchCandidates);
+      choosePendingMatch(index,preselectedSku);
+    }
+    setTimeout(()=>(preselectedSku?$('pendingResolverSaveBtn'):$('pendingExistingSku')).focus(),0);
   }
   function closePendingResolver(){
     $('pendingResolverModal').classList.remove('show');
@@ -1361,7 +1540,7 @@
   }
   function renderPending() {
     const body=$('pendingTable').querySelector('tbody'); body.innerHTML='';
-    if(!appState.pending.length){ body.innerHTML='<tr><td class="empty" colspan="7">Nenhuma pendência de SKU encontrada.</td></tr>'; return; }
+    if(!appState.pending.length){ body.innerHTML='<tr><td class="empty" colspan="8">Nenhuma pendência de SKU encontrada.</td></tr>'; return; }
     const admin=isAdminUser();
     const frag=document.createDocumentFragment();
     appState.pending.forEach((r,index)=>{
@@ -1369,7 +1548,14 @@
       const action=admin
         ? `<button type="button" class="primary mini pending-action" data-resolve-pending="${index}">Resolver</button>`
         : '<span class="footnote">Somente administrador</span>';
-      tr.innerHTML=`<td>${esc(r.Marketplace)}</td><td class="pending-sku-code">${esc(r.SourceSku||r.Identificador)}</td><td>${esc(r.Produto)}</td><td>${esc(r.Variacao||'')}</td><td class="num"><strong>${nf2.format(r.Unidades_vendidas)}</strong></td><td>${esc(r.Motivo)}</td><td>${action}</td>`;
+      let suggestion='—';
+      if(r.MatchSuggestion){
+        const s=r.MatchSuggestion, conf=matchConfidence(s.score);
+        suggestion=`<div class="match-suggestion"><strong>${esc(s.sku)}</strong><span class="match-score ${conf.cls}">${conf.label} • ${Math.round(s.score*100)}%</span>${admin?`<div style="margin-top:6px"><button type="button" class="secondary mini" data-review-pending-match="${index}">Conferir</button></div>`:''}</div>`;
+      } else if(admin){
+        suggestion=`<button type="button" class="secondary mini" data-find-pending-match="${index}">Buscar</button>`;
+      }
+      tr.innerHTML=`<td>${esc(r.Marketplace)}</td><td class="pending-sku-code">${esc(r.SourceSku||r.Identificador)}</td><td>${esc(r.Produto)}</td><td>${esc(r.Variacao||'')}</td><td class="num"><strong>${nf2.format(r.Unidades_vendidas)}</strong></td><td>${suggestion}</td><td>${esc(r.Motivo)}</td><td>${action}</td>`;
       frag.appendChild(tr);
     });
     body.appendChild(frag);
@@ -1746,6 +1932,7 @@
       }));
       appState.catalog=catalog;
       appState.catalogByVariation=buildCatalogVariationIndex(catalog);
+      appState.catalogMatchIndex=[];
       applyProductCatalog(summary,catalog);
       applyStock(summary,stock);
 
@@ -1760,7 +1947,7 @@
 
       // Pendencias carregam depois e nunca bloqueiam o resumo.
       const pendingBody=$('pendingTable')?.querySelector('tbody');
-      if(pendingBody) pendingBody.innerHTML='<tr><td class="empty" colspan="7">Carregando pendências...</td></tr>';
+      if(pendingBody) pendingBody.innerHTML='<tr><td class="empty" colspan="8">Carregando pendências...</td></tr>';
       fetchAllRpcRows('get_pending_skus',{p_start:start,p_end:end})
         .then(pend=>{
           // Ignora resposta antiga se o usuario ja mudou o periodo.
@@ -1777,7 +1964,7 @@
           appState.pending=[];
           appState.metrics.pendingUnits=0;
           $('mPending').textContent='—';
-          if(pendingBody) pendingBody.innerHTML='<tr><td class="empty" colspan="7">Pendências não carregadas agora. O resumo principal continua disponível.</td></tr>';
+          if(pendingBody) pendingBody.innerHTML='<tr><td class="empty" colspan="8">Pendências não carregadas agora. O resumo principal continua disponível.</td></tr>';
         });
     }catch(e){ console.error(e); setStatus(`Erro ao carregar o dashboard: ${e?.message||e}`,'error'); }
   }
@@ -1832,6 +2019,7 @@
     $('adminImportCard').style.display=admin?'block':'none';
     $('adminHistoryCard').style.display=admin?'block':'none';
     $('productEditHeader').style.display=admin?'table-cell':'none';
+    $('scanPendingSuggestionsBtn').style.display=admin?'inline-flex':'none';
     try{
       const shouldSetDashboardDefault = dashboardDefaultsUserId !== currentUser.id;
       if(shouldSetDashboardDefault) dashboardDefaultsUserId = currentUser.id;
@@ -1872,9 +2060,19 @@
   $('xlsxBtn').addEventListener('click',async()=>{try{await exportXLSX();}catch(e){console.error(e);setStatus(e?.message||String(e),'error');}});
   $('refreshHistoryBtn').addEventListener('click',loadImportHistory);
   $('summaryTable').querySelector('tbody').addEventListener('click',e=>{ const btn=e.target.closest('button[data-edit-product]'); if(btn) openProductEditor(btn.dataset.editProduct); });
-  $('pendingTable').querySelector('tbody').addEventListener('click',e=>{ const btn=e.target.closest('button[data-resolve-pending]'); if(btn) openPendingResolver(Number(btn.dataset.resolvePending)); });
+  $('pendingTable').querySelector('tbody').addEventListener('click',e=>{
+    const resolve=e.target.closest('button[data-resolve-pending]');
+    if(resolve){ openPendingResolver(Number(resolve.dataset.resolvePending)); return; }
+    const find=e.target.closest('button[data-find-pending-match]');
+    if(find){ const index=Number(find.dataset.findPendingMatch); findMatchesForPending(index,false); renderPending(); return; }
+    const review=e.target.closest('button[data-review-pending-match]');
+    if(review){ const index=Number(review.dataset.reviewPendingMatch), r=appState.pending[index]; openPendingResolver(index,r?.MatchSuggestion?.sku||''); }
+  });
   $('pendingResolveMode').addEventListener('change',togglePendingResolveMode);
   $('pendingExistingSku').addEventListener('input',updatePendingExistingPreview);
+  $('scanPendingSuggestionsBtn').addEventListener('click',()=>scanAllPendingSuggestions().catch(e=>{console.error(e);setStatus(e?.message||String(e),'error');}));
+  $('findPendingMatchesBtn').addEventListener('click',()=>{ const index=Number($('pendingResolverModal').dataset.pendingIndex); const candidates=findMatchesForPending(index,true); renderPending(); if(candidates[0]) setStatus(`Encontradas ${candidates.length} sugestão(ões) para conferência. Nenhum vínculo foi salvo.`, 'info'); });
+  $('pendingMatchCandidateList').addEventListener('click',e=>{ const btn=e.target.closest('button[data-use-pending-match]'); if(!btn) return; const index=Number($('pendingResolverModal').dataset.pendingIndex); choosePendingMatch(index,btn.dataset.usePendingMatch); });
   $('pendingResolverCancelBtn').addEventListener('click',closePendingResolver);
   $('pendingResolverSaveBtn').addEventListener('click',async()=>{try{await savePendingResolution();}catch(e){console.error(e);setStatus(e?.message||String(e),'error');}});
   $('pendingResolverModal').addEventListener('click',e=>{ if(e.target===$('pendingResolverModal')) closePendingResolver(); });
