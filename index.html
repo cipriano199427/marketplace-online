@@ -224,7 +224,7 @@
         <input id="sheinFiles" type="file" accept=".xlsx,.xls" multiple />
       </div>
       <div class="upload">
-        <div><strong>Amazon</strong><small>Business Report CSV com Título, Código SKU e Unidades pedidas. Exporte o relatório da Amazon para o mesmo período selecionado abaixo.</small></div>
+        <div><strong>Amazon</strong><small>Business Report CSV com Título, Código SKU e Unidades pedidas. Informe abaixo exatamente o período usado para gerar o relatório. Se o mesmo arquivo já existir com datas erradas, o sistema corrigirá o período sem duplicar as vendas.</small></div>
         <input id="amazonFile" type="file" accept=".csv,text/csv" />
       </div>
       <div class="upload">
@@ -1324,12 +1324,22 @@
   }
   async function saveImport(file, marketplace, rows, fallbackStart=null, fallbackEnd=null){
     if(!rows.length) throw new Error(`${marketplace}: nenhuma linha válida encontrada em ${file.name}.`);
-    const hash=await fileHash(file);
-    const {data:existing,error:checkError}=await db.from('imports').select('id,file_name').eq('marketplace',marketplace).eq('file_hash',hash).maybeSingle();
-    if(checkError) throw checkError;
-    if(existing) return {skipped:true,name:file.name};
     const period=rowPeriod(rows,fallbackStart,fallbackEnd);
     if(!period.start||!period.end) throw new Error(`${marketplace}: não foi possível determinar o período do arquivo ${file.name}.`);
+    const hash=await fileHash(file);
+    const {data:existing,error:checkError}=await db.from('imports').select('id,file_name,period_start,period_end').eq('marketplace',marketplace).eq('file_hash',hash).maybeSingle();
+    if(checkError) throw checkError;
+    if(existing){
+      // O Business Report da Amazon nao possui data por pedido. Se o mesmo arquivo
+      // ja foi salvo com um periodo incorreto, permitir corrigir somente o periodo
+      // sem duplicar as linhas de sales_items nem reenviar o arquivo ao Storage.
+      if(marketplace==='Amazon' && (existing.period_start!==period.start || existing.period_end!==period.end)){
+        const {error:updateError}=await db.from('imports').update({period_start:period.start,period_end:period.end}).eq('id',existing.id);
+        if(updateError) throw updateError;
+        return {skipped:false,name:file.name,rows:0,units:0,periodUpdated:true,periodStart:period.start,periodEnd:period.end};
+      }
+      return {skipped:true,name:file.name};
+    }
     const path=`${marketSlug(marketplace)}/${currentUser.id}/${hash.slice(0,16)}_${safeFileName(file.name)}`;
     const {error:uploadError}=await db.storage.from('marketplace-files').upload(path,file,{upsert:false,contentType:file.type||undefined});
     if(uploadError) throw uploadError;
@@ -1376,15 +1386,21 @@
     const btn=$('processBtn'); btn.disabled=true; btn.textContent='Salvando...';
     try{
       needXLSX();
-      let imported=0, skipped=0, totalRows=0;
-      for(const job of jobs){ const r=await job(); if(r.skipped) skipped++; else { imported++; totalRows+=r.rows||0; } }
+      let imported=0, skipped=0, totalRows=0, periodsUpdated=0;
+      for(const job of jobs){
+        const r=await job();
+        if(r.periodUpdated){ periodsUpdated++; }
+        else if(r.skipped) skipped++;
+        else { imported++; totalRows+=r.rows||0; }
+      }
       clearFileInputs();
       await loadAvailableRange(false);
       const dashboardTask=refreshDashboard(false);
       loadImportHistory().catch(e=>console.warn('Historico de importacoes:',e));
       loadMarketplaceUpdates().catch(e=>console.warn('Status das planilhas:',e));
       await dashboardTask;
-      setStatus(`Importação concluída: ${imported} arquivo(s) salvo(s), ${skipped} duplicado(s) ignorado(s), ${nf0.format(totalRows)} linhas novas.`,'ok');
+      const extras=periodsUpdated ? `, ${periodsUpdated} período(s) da Amazon corrigido(s)` : '';
+      setStatus(`Importação concluída: ${imported} arquivo(s) salvo(s), ${skipped} duplicado(s) ignorado(s)${extras}, ${nf0.format(totalRows)} linhas novas.`,'ok');
     }catch(e){ console.error(e); setStatus(e?.message||String(e),'error'); }
     finally{ btn.disabled=false; btn.textContent='Processar e salvar'; }
   }
