@@ -27,8 +27,8 @@
     }
     .shell { max-width: 1500px; margin: 0 auto; padding: 28px; }
     .hero {
-      display:flex; gap:24px; align-items:flex-start; justify-content:space-between;
-      margin-bottom:14px;
+      display: flex; gap: 24px; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 22px;
     }
     h1 { margin: 0 0 8px; font-size: clamp(27px, 3vw, 42px); letter-spacing: -.03em; }
     .subtitle { margin: 0; color: var(--muted); max-width: 820px; line-height: 1.55; }
@@ -85,9 +85,6 @@
     td { padding: 10px 12px; border-bottom: 1px solid #edf1f5; vertical-align: top; }
     tr:hover td { background: #fafcff; }
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-    th.marketplace-col { text-align:center; padding:8px 6px; min-width:58px; }
-    .head-logo { width:34px; height:34px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; background:#fff; border:1px solid #d9e2ec; box-shadow:0 1px 2px rgba(16,24,40,.06); overflow:hidden; }
-    .head-logo img { width:24px; height:24px; object-fit:contain; display:block; }
     .sku { font-weight: 800; white-space: nowrap; }
     .pending-row td { background: #fff7ed; }
     .pill { display: inline-flex; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
@@ -98,13 +95,9 @@
     details { margin-top: 14px; }
     summary { cursor: pointer; font-weight: 800; }
     code { background: #f2f4f7; padding: 2px 5px; border-radius: 5px; }
-    @media (max-width: 1180px) {
-      .updates-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-    }
     @media (max-width: 1000px) {
       .grid-3, .grid-4, .grid-5, .controls { grid-template-columns: 1fr 1fr; }
       .hero { flex-direction: column; }
-      .updates-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
     }
     @media (max-width: 650px) {
       .shell { padding: 16px; }
@@ -112,7 +105,6 @@
       .filters input { min-width: 0; width: 100%; }
       .dashboard-tools { align-items:stretch; }
       .custom-period { grid-template-columns:1fr; }
-      .updates-grid { grid-template-columns:1fr; }
     }
 
     .auth-shell { min-height: 100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
@@ -120,27 +112,7 @@
     .auth-card h1 { font-size:30px; }
     .auth-card input[type=email], .auth-card input[type=password] { width:100%; border:1px solid #cfd8e4; border-radius:10px; padding:12px; margin-top:6px; font-size:14px; }
     .auth-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px; }
-    .top-user { display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end; padding-top:2px; }
-    .updates-card { background:#fff; border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow); padding:16px 18px; margin-bottom:18px; }
-    .updates-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
-    .updates-title { font-size:15px; font-weight:900; color:var(--text); }
-    .updates-subtitle { font-size:12px; color:var(--muted); margin-top:4px; line-height:1.45; }
-    .updates-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:12px; }
-    .market-update { min-height:72px; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; border:1px solid #e3eaf2; border-radius:14px; background:#fbfdff; }
-    .market-update.ok { background:#f6fffa; border-color:#c7ead6; }
-    .market-update.stale { background:#fff8f7; border-color:#f4c7c3; }
-    .market-left { display:flex; align-items:center; gap:10px; min-width:0; }
-    .market-logo { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #d9e2ec; box-shadow:0 1px 2px rgba(16,24,40,.06); overflow:hidden; flex:0 0 auto; }
-    .market-logo img { width:24px; height:24px; object-fit:contain; display:block; }
-    .market-meta { min-width:0; }
-    .market-name { font-size:13px; font-weight:800; line-height:1.2; }
-    .market-date { font-size:11px; color:var(--muted); margin-top:3px; line-height:1.25; }
-    .market-status { font-size:19px; font-weight:900; line-height:1; flex:0 0 auto; }
-    .market-status.ok { color:var(--ok); }
-    .market-status.stale { color:var(--danger); }
-    .updates-footnote { margin-top:10px; color:var(--muted); font-size:11px; line-height:1.4; }
-    @media (max-width: 1180px) { .updates-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-    @media (max-width: 650px) { .updates-grid { grid-template-columns:1fr; } .top-user { justify-content:flex-start; } }
+    .top-user { display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
     .user-email { font-size:13px; color:var(--muted); font-weight:700; }
     .history-row-actions { white-space:nowrap; }
     .danger { background:#fff1f0; color:var(--danger); border:1px solid #f4c7c3; }
@@ -181,19 +153,6 @@
       <p class="subtitle">Consolide TikTok, Mercado Livre, Shopee, SHEIN, Amazon, Droga Raia, Magazine Luiza e Beleza na Web em uma única visão. Escolha o período das vendas e veja unidades consideradas, variação, média diária e sugestão de compra com 15% adicional por SKU.</p>
     </div>
     <div class="top-user"><span id="userEmail" class="user-email"></span><span class="badge">Online • Supabase</span><button id="logoutBtn" class="secondary mini">Sair</button></div>
-  </div>
-
-  <div class="updates-card">
-    <div class="updates-head">
-      <div>
-        <div class="updates-title">Atualização das planilhas</div>
-        <div id="updatesReference" class="updates-subtitle">Carregando status das planilhas...</div>
-      </div>
-    </div>
-    <div id="updatesGrid" class="updates-grid">
-      <div class="empty" style="grid-column:1 / -1; padding:18px;">Carregando status...</div>
-    </div>
-    <div class="updates-footnote">✓ atualizado no mesmo dia da última importação geral • ✕ planilha ainda não atualizada nesse dia</div>
   </div>
 
   <div id="globalStatus" class="status info" style="margin-bottom:16px"></div>
@@ -310,8 +269,8 @@
         <table id="summaryTable">
           <thead><tr>
             <th>SKU</th><th>Produto</th><th>Variação</th>
-            <th class="num">Total</th><th class="num">Sugestão</th><th class="num">Média/dia</th><th class="num">Estoque</th>
-            <th class="num marketplace-col" title="TikTok" aria-label="TikTok"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.tiktok.com" alt="TikTok" referrerpolicy="no-referrer" decoding="async" fetchpriority="low" /></span></th><th class="num marketplace-col" title="Mercado Livre" aria-label="Mercado Livre"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.mercadolivre.com.br" alt="Mercado Livre" referrerpolicy="no-referrer" decoding="async" fetchpriority="low" /></span></th><th class="num marketplace-col" title="Shopee" aria-label="Shopee"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://shopee.com.br" alt="Shopee" referrerpolicy="no-referrer" decoding="async" fetchpriority="low" /></span></th><th class="num marketplace-col" title="SHEIN" aria-label="SHEIN"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://br.shein.com" alt="SHEIN" referrerpolicy="no-referrer" decoding="async" fetchpriority="low" /></span></th><th class="num marketplace-col" title="Amazon" aria-label="Amazon"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.amazon.com.br" alt="Amazon" referrerpolicy="no-referrer" decoding="async" fetchpriority="low" /></span></th><th class="num marketplace-col" title="Droga Raia" aria-label="Droga Raia"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.drogaraia.com.br" alt="Droga Raia" referrerpolicy="no-referrer" decoding="async" fetchpriority="low" /></span></th><th class="num marketplace-col" title="Magazine Luiza" aria-label="Magazine Luiza"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.magazineluiza.com.br" alt="Magazine Luiza" referrerpolicy="no-referrer" decoding="async" fetchpriority="low" /></span></th><th class="num marketplace-col" title="Beleza na Web" aria-label="Beleza na Web"><span class="head-logo"><img src="https://www.google.com/s2/favicons?sz=64&domain_url=https://www.belezanaweb.com.br" alt="Beleza na Web" referrerpolicy="no-referrer" decoding="async" fetchpriority="low" /></span></th><th>SKU pendente?</th><th id="productEditHeader" style="display:none">Padronização</th>
+            <th class="num">Total considerado</th><th class="num">Sugestão de compra</th><th class="num">Média/dia</th><th class="num">Estoque</th>
+            <th class="num">TikTok líquido</th><th class="num">Mercado Livre líquido</th><th class="num">Shopee líquido</th><th class="num">SHEIN líquido</th><th class="num">Amazon pedidas</th><th class="num">Droga Raia líquido</th><th class="num">Magazine Luiza líquido</th><th class="num">Beleza na Web líquido</th><th>SKU pendente?</th><th id="productEditHeader" style="display:none">Padronização</th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -378,22 +337,11 @@
 
 
   const PT_MONTHS = { janeiro:1, fevereiro:2, marco:3, abril:4, maio:5, junho:6, julho:7, agosto:8, setembro:9, outubro:10, novembro:11, dezembro:12 };
-  let appState = { summary: [], pending: [], base: [], metrics: null, stock: null, hasStock: false, catalog: new Map(), catalogByVariation: new Map(), loadedSearch: '' };
+  let appState = { summary: [], pending: [], base: [], metrics: null, stock: null, hasStock: false, catalog: new Map(), loadedSearch: '' };
   let dashboardAvailableMin = null;
   let dashboardAvailableMax = null;
   let dashboardPeriodMode = '15';
   let dashboardDefaultsUserId = null;
-
-  const MARKETPLACE_UPDATE_CONFIG = [
-    { key:'TikTok', label:'TikTok', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.tiktok.com' },
-    { key:'Mercado Livre', label:'Mercado Livre', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.mercadolivre.com.br' },
-    { key:'Shopee', label:'Shopee', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://shopee.com.br' },
-    { key:'SHEIN', label:'SHEIN', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://br.shein.com' },
-    { key:'Amazon', label:'Amazon', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.amazon.com.br' },
-    { key:'Droga Raia', label:'Droga Raia', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.drogaraia.com.br' },
-    { key:'Magazine Luiza', label:'Magazine Luiza', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.magazineluiza.com.br' },
-    { key:'Beleza na Web', label:'Beleza na Web', logoUrl:'https://www.google.com/s2/favicons?sz=64&domain_url=https://www.belezanaweb.com.br' }
-  ];
 
   const $ = id => document.getElementById(id);
   const nf0 = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
@@ -432,103 +380,39 @@
     return s;
   }
 
-  function looksLikeMeasurementVariation(value) {
-    return /^\d+(?:[.,]\d+)?\s*(?:ml|l|g|kg|mg|oz|cm|mm)$/i.test(String(value ?? '').trim());
-  }
-  function isGenericVariation(value) {
-    const n=normText(value);
-    return !n || ['padrao','default','unica','unico','sem variacao','sem variante','nao se aplica','n/a','na','-','—'].includes(n);
-  }
-  function looksLikeShadeCode(value) {
-    return /^[A-Za-z]{1,3}\d{1,3}$/.test(String(value ?? '').trim()) || /^\d{1,2}$/.test(String(value ?? '').trim());
-  }
   function inferVariationFromProduct(product) {
     const s=String(product ?? '').replace(/[\t\n]+/g,' ').replace(/\s+/g,' ').trim();
     if(!s) return '';
 
-    // Rotulos explicitos: "Tom 08", "Cor Nude", "Tamanho M" etc.
-    // Aceita o rotulo mesmo quando existe texto depois separado por virgula.
-    let m=s.match(/(?:tom|cor|color|tamanho|size|varia(?:ç|c)(?:ã|a)o|variation|op(?:ç|c)(?:ã|a)o)\s*[:#=-]?\s*([^|,;]+)/i);
+    // Medidas/volumes no fim do titulo: 300 ml, 500g, 1L, 50 mg etc.
+    let m=s.match(/(?:^|\s)(\d+(?:[.,]\d+)?\s*(?:ml|l|g|kg|mg|oz|cm|mm))\s*$/i);
+    if(m) return m[1].replace(/\s+/g,' ').trim();
+
+    // Rotulos explicitos no fim do titulo: Tom 08, Cor Nude, Tamanho M etc.
+    m=s.match(/(?:tom|cor|color|tamanho|size|varia(?:ç|c)(?:ã|a)o|variation|op(?:ç|c)(?:ã|a)o)\s*[:#=-]?\s*([^|,;]+?)\s*$/i);
     if(m && m[1]) return m[1].trim();
 
-    // Codigos alfanumericos de tom/cor. Mantemos a deteccao conservadora para nao
-    // confundir marcas como K18 com variacao:
-    // "... Liquida D40 40ml" -> D40
-    // "... Liquida D40" -> D40
-    // "... Liquida F30, Bruna Tavares" -> F30
-    m=s.match(/(?:^|\s)([A-Za-z]{1,3}\d{1,3})(?=\s*(?:[-–—|:]?\s*)?(?:\d+(?:[.,]\d+)?\s*(?:ml|l|g|kg|mg|oz|cm|mm))?\s*$)/i);
-    if(m) return m[1].toUpperCase();
-    m=s.match(/(?:^|[\s(\[])([A-Za-z]{1,3}\d{1,3})\s*[,;]\s*[^,;]{1,60}$/i);
+    // Codigos alfanumericos de tonalidade muito comuns na Amazon e em maquiagem:
+    // L10, M20, F30, F40, F50 etc. Mantemos o codigo exatamente como veio.
+    m=s.match(/(?:^|\s)([A-Za-z]\d{1,3})\s*$/);
     if(m) return m[1].toUpperCase();
 
-    // Tons numericos imediatamente antes de um volume no fim: "... 08 30ml" -> 08.
-    // Exigimos separacao real para nao interpretar os digitos de "40ml" como tom 04.
-    m=s.match(/(?:^|\s)(\d{1,2})(?=\s+(?:[-–—|,;:]?\s*)?(?:\d+(?:[.,]\d+)?\s*(?:ml|l|g|kg|mg|oz|cm|mm))\s*$)/i);
+    // Tons numericos muito comuns em maquiagem: titulo terminando em 01, 08, 14 etc.
+    // Limitado a 1-2 digitos para nao confundir nomes de produto como "212".
+    m=s.match(/(?:^|\s)(\d{1,2})\s*$/);
     if(m) return m[1].padStart(2,'0');
-
-    // Numero puro no fim sem unidade pode representar tom (ex.: "... Liquida 14").
-    m=s.match(/(?:^|\s)(\d{1,2})\s*$/i);
-    if(m) return m[1].padStart(2,'0');
-
-    // Medidas/volumes sao apenas o ultimo recurso quando nao ha codigo de tom.
-    m=s.match(/(?:^|\s)(\d+(?:[.,]\d+)?\s*(?:ml|l|g|kg|mg|oz|cm|mm))\s*$/i);
-    if(m) return m[1].replace(/\s+/g,' ').trim();
     return '';
-  }
-
-  function isBtSkinBaseFamily(product) {
-    const n=normText(product);
-    if(!n) return false;
-    const brand=/\bbruna tavares\b/.test(n) || /(^|\s)bt(?=\s|$)/.test(n) || n.includes('bt skin');
-    const family=n.includes('bt skin') || n.includes('skin base') || (n.includes('base') && (n.includes('liquida') || n.includes('liquid')));
-    return brand && family;
-  }
-
-  function canonicalProductName(product) {
-    const original=String(product ?? '').replace(/[\t\n]+/g,' ').replace(/\s+/g,' ').trim();
-    if(!original) return '';
-    // A BT Skin aparece com muitos titulos diferentes entre marketplaces
-    // ("BT Skin Base", "Base Liquida Bruna Tavares", "com acabamento aveludado" etc.).
-    // Para a familia ser pesquisavel e visualmente consistente, usamos um unico nome-base;
-    // a cor/tom continua exclusivamente na coluna Variacao.
-    if(isBtSkinBaseFamily(original)) return 'Bruna Tavares BT Skin Base Líquida';
-    return original;
-  }
-
-  function productFamilyAliases(row) {
-    const source=[row?.Produto,row?.ProdutoOrigem].filter(Boolean).join(' ');
-    const aliases=[];
-    if(isBtSkinBaseFamily(source)) aliases.push('bt skin base bruna tavares base liquida skin base');
-    return aliases.join(' ');
-  }
-
-  function matchesSummarySearch(row, query) {
-    const q=normText(query);
-    if(!q) return true;
-    const hay=normText(`${row?.SKU||''} ${row?.Produto||''} ${row?.Variacao||''} ${row?.ProdutoOrigem||''} ${row?.VariacaoOrigem||''} ${productFamilyAliases(row)}`);
-    // Busca por palavras, em vez de exigir a frase inteira exatamente como um marketplace escreveu.
-    // Ex.: "bt skin base" encontra "Bruna Tavares Base Liquida L30" por pertencer à mesma familia.
-    return q.split(' ').filter(Boolean).every(token=>hay.includes(token));
   }
 
   function removeInferredVariationFromProduct(product, variation) {
     const original=String(product ?? '').replace(/[\t\n]+/g,' ').replace(/\s+/g,' ').trim();
     const v=String(variation ?? '').trim();
     if(!original || !v) return original;
+    // Remove somente quando a variacao esta literalmente no final do titulo.
+    // Ex.: "Bruna Tavares BT Skin Base Liquida L10" -> "... Liquida".
     const escaped=v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-
-    let cleaned=original;
-    if(looksLikeShadeCode(v)) {
-      // Para codigo de tom, pode estar no fim, antes do volume ou no meio do titulo.
-      // Remove somente o token completo e acerta pontuacao residual.
-      const rx=new RegExp('(^|[\\s,(\\[\\-–—])'+escaped+'(?=$|[\\s,)\\]\\-–—|,;:])','i');
-      cleaned=cleaned.replace(rx,(match,prefix)=>prefix && /[A-Za-z0-9]/.test(prefix) ? prefix : ' ');
-    } else {
-      // Para medidas, removemos apenas se estiverem no final para nao apagar informacao util do nome.
-      const rx=new RegExp('\\s+'+escaped+'\\s*$','i');
-      cleaned=cleaned.replace(rx,'');
-    }
-    cleaned=cleaned.replace(/\s+([,;:])/g,'$1').replace(/^[,;:\s-]+|[,;:\s-]+$/g,'').replace(/\s+/g,' ').trim();
+    const rx=new RegExp('\\s+'+escaped+'\\s*$','i');
+    const cleaned=original.replace(rx,'').trim();
     return cleaned || original;
   }
   function asNumber(v) {
@@ -600,50 +484,6 @@
   function clearStatus() {
     const globalEl=$('globalStatus'); if(globalEl){ globalEl.className='status info'; globalEl.textContent=''; }
     const adminEl=$('status'); if(adminEl){ adminEl.className='status info'; adminEl.textContent=''; }
-  }
-  function sameCalendarDay(a,b){
-    if(!(a instanceof Date) || isNaN(a) || !(b instanceof Date) || isNaN(b)) return false;
-    return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
-  }
-  function formatDateTime(value){
-    if(!value) return '-';
-    const d = value instanceof Date ? value : new Date(value);
-    if(isNaN(d)) return '-';
-    return d.toLocaleString('pt-BR',{ dateStyle:'short', timeStyle:'short' });
-  }
-  async function loadMarketplaceUpdates(){
-    const grid=$('updatesGrid');
-    const ref=$('updatesReference');
-    if(!grid || !ref || !currentUser) return;
-    grid.innerHTML='<div class="empty" style="grid-column:1 / -1; padding:18px;">Carregando status...</div>';
-    ref.textContent='Carregando status das planilhas...';
-    const {data,error}=await db.from('imports').select('marketplace,created_at').order('created_at',{ascending:false}).limit(500);
-    if(error){
-      console.error(error);
-      ref.textContent='Não foi possível carregar o status das planilhas.';
-      grid.innerHTML='<div class="empty" style="grid-column:1 / -1; padding:18px;">Erro ao carregar status.</div>';
-      return;
-    }
-    const latestByMarket = new Map();
-    let latestGlobal = null;
-    for(const row of (data||[])){
-      const created = new Date(row.created_at);
-      if(isNaN(created)) continue;
-      if(!latestGlobal || created > latestGlobal) latestGlobal = created;
-      if(!latestByMarket.has(row.marketplace)) latestByMarket.set(row.marketplace, created);
-    }
-    ref.textContent = latestGlobal ? `Última importação geral: ${formatDateTime(latestGlobal)}` : 'Nenhuma importação salva ainda.';
-    const frag=document.createDocumentFragment();
-    for(const item of MARKETPLACE_UPDATE_CONFIG){
-      const updatedAt = latestByMarket.get(item.key) || null;
-      const ok = !!(updatedAt && latestGlobal && sameCalendarDay(updatedAt, latestGlobal));
-      const wrap=document.createElement('div');
-      wrap.className=`market-update ${ok ? 'ok' : 'stale'}`;
-      wrap.innerHTML=`<div class="market-left"><div class="market-logo"><img src="${esc(item.logoUrl)}" alt="${esc(item.label)}" referrerpolicy="no-referrer" /></div><div class="market-meta"><div class="market-name">${esc(item.label)}</div><div class="market-date">${updatedAt ? `Atualizado em ${esc(formatDateTime(updatedAt))}` : 'Sem planilha importada'}</div></div></div><div class="market-status ${ok ? 'ok' : 'stale'}" title="${ok ? 'Atualizado no mesmo dia da última importação geral' : 'Ainda não atualizado no mesmo dia da última importação geral'}">${ok ? '✓' : '✕'}</div>`;
-      frag.appendChild(wrap);
-    }
-    grid.innerHTML='';
-    grid.appendChild(frag);
   }
   function needXLSX() {
     if (!window.XLSX) throw new Error('Não foi possível carregar o leitor de Excel. Verifique sua conexão com a internet e recarregue a página.');
@@ -985,66 +825,12 @@
         throw error;
       }
       const chunk=data||[];
-      for(const r of chunk){ const sku=normSku(r.sku); map.set(sku,{sku,product_name:r.product_name??'',variation_name:r.variation_name??''}); }
+      for(const r of chunk) map.set(normSku(r.sku),{product_name:r.product_name??'',variation_name:r.variation_name??''});
       if(chunk.length<pageSize) break;
       from+=pageSize;
       if(from>1000000) throw new Error('O cadastro de produtos excedeu 1.000.000 de registros.');
     }
     return map;
-  }
-  function catalogMatchProductText(value) {
-    let s=normText(value);
-    if(!s) return '';
-    s=s.replace(/\([^)]*\)/g,' ')
-      .replace(/\b[a-z]{1,3}\d{1,4}\b/gi,' ')
-      .replace(/\b\d+(?:[.,]\d+)?\s*(?:ml|l|g|kg|mg|oz|cm|mm)\b/gi,' ')
-      .replace(/\b(?:com|para|de|da|do|das|dos|e|ou|a|o|um|uma|the)\b/g,' ')
-      .replace(/[^a-z0-9]+/g,' ')
-      .replace(/\s+/g,' ').trim();
-    return s;
-  }
-  function catalogProductScore(a,b) {
-    const aa=catalogMatchProductText(a), bb=catalogMatchProductText(b);
-    if(!aa || !bb) return 0;
-    const A=new Set(aa.split(' ').filter(x=>x.length>1));
-    const B=new Set(bb.split(' ').filter(x=>x.length>1));
-    if(!A.size || !B.size) return 0;
-    let inter=0; for(const x of A) if(B.has(x)) inter++;
-    const minSize=Math.min(A.size,B.size);
-    if(inter < Math.min(3,minSize)) return 0;
-    const overlap=inter/minSize;
-    const union=A.size+B.size-inter;
-    const jaccard=union?inter/union:0;
-    let score=overlap*0.72+jaccard*0.28;
-    if(aa.includes(bb)||bb.includes(aa)) score=Math.min(1,score+0.12);
-    return score;
-  }
-  function buildCatalogVariationIndex(catalog) {
-    const idx=new Map();
-    for(const [sku,c] of catalog){
-      const v=normText(cleanVariationLabel(c.variation_name||''));
-      if(!v || isGenericVariation(v)) continue;
-      if(!idx.has(v)) idx.set(v,[]);
-      idx.get(v).push({sku,product_name:c.product_name||'',variation_name:c.variation_name||''});
-    }
-    return idx;
-  }
-  function findCatalogAliasMatch(product,variation) {
-    const v=normText(cleanVariationLabel(variation||''));
-    if(!v || isGenericVariation(v)) return null;
-    const candidates=appState.catalogByVariation.get(v)||[];
-    if(!candidates.length) return null;
-    let best=null, second=0;
-    for(const c of candidates){
-      const score=catalogProductScore(product,c.product_name);
-      if(!best || score>best.score){ second=best?best.score:second; best={...c,score}; }
-      else if(score>second) second=score;
-    }
-    if(!best) return null;
-    // Exigimos semelhanca forte. Se houver outro candidato quase empatado, nao arriscamos.
-    if(best.score<0.68) return null;
-    if(second>=0.60 && best.score-second<0.10) return null;
-    return best;
   }
   function applyProductCatalog(summary,catalog){
     for(const r of summary){
@@ -1053,40 +839,25 @@
       const originalVariation=String(r.Variacao??'').trim();
       const cleaned=cleanVariationLabel(originalVariation);
       const inferred=inferVariationFromProduct(r.ProdutoOrigem);
-      // Se a coluna de variacao trouxe apenas o volume (ex.: 40ml), mas o titulo
-      // contem um codigo de tom (ex.: D40), o codigo do tom deve prevalecer.
-      // Codigo de tom encontrado no titulo vence quando a origem nao trouxe variacao util,
-      // trouxe apenas "Padrão" ou trouxe somente volume/medida.
-      const inferredHasPriority=!!inferred && looksLikeShadeCode(inferred) && (isGenericVariation(cleaned) || looksLikeMeasurementVariation(cleaned));
-      const automaticVariation=inferredHasPriority ? inferred : (!isGenericVariation(cleaned) ? cleaned : (inferred || 'Padrão'));
-      const inferredFromTitle=!!inferred && (!cleaned || inferredHasPriority);
-      const automaticProductRaw=inferredFromTitle ? removeInferredVariationFromProduct(r.ProdutoOrigem,inferred) : r.ProdutoOrigem;
-      const automaticProduct=canonicalProductName(automaticProductRaw);
+      const automaticVariation=cleaned || inferred || 'Padrão';
+      const inferredFromTitle=!cleaned && !!inferred;
+      const automaticProduct=inferredFromTitle ? removeInferredVariationFromProduct(r.ProdutoOrigem,inferred) : r.ProdutoOrigem;
       const c=catalog.get(normSku(r.SKU));
-      const aliasMatch=!c ? findCatalogAliasMatch(r.ProdutoOrigem||automaticProduct,automaticVariation) : null;
       if(c){
-        // SKU encontrado diretamente no cadastro oficial/manual: ele e soberano.
+        // O cadastro mestre continua soberano quando existe uma variacao preenchida.
+        // Se a variacao do cadastro estiver vazia, usamos a melhor informacao da origem
+        // em vez de apagar a variacao exibida.
         r.Produto=c.product_name||automaticProduct||r.Produto;
         const manualVariation=String(c.variation_name??'').trim();
         r.Variacao=manualVariation || automaticVariation;
         r.NomePadronizado=true;
-        r.CatalogoOficial=true;
         r.VariacaoNormalizada=!manualVariation && r.Variacao!==originalVariation;
-      } else if(aliasMatch){
-        // Alguns marketplaces usam outro SKU para o mesmo item (ex.: PARIS-VARIACAO-*).
-        // Quando produto + variacao batem com alta confianca no cadastro, usamos os nomes oficiais.
-        r.Produto=aliasMatch.product_name||automaticProduct||r.Produto;
-        r.Variacao=aliasMatch.variation_name||automaticVariation;
-        r.NomePadronizado=true;
-        r.CatalogoOficial=true;
-        r.SKU_Catalogo=aliasMatch.sku;
-        r.VariacaoNormalizada=true;
       } else {
-        // Sem correspondencia segura no cadastro, preservamos a normalizacao conservadora.
+        // Sem cadastro manual, removemos rotulos genericos e recuperamos variacoes
+        // que vieram embutidas no fim do nome do produto.
         r.Produto=automaticProduct||r.Produto;
         r.Variacao=automaticVariation;
         r.NomePadronizado=false;
-        r.CatalogoOficial=false;
         r.VariacaoNormalizada=r.Variacao!==originalVariation;
       }
     }
@@ -1112,8 +883,7 @@
     if(!sku||!product){ setStatus('Informe um nome padrão para o produto.','warn'); return; }
     const {error}=await db.from('product_catalog').upsert({sku,product_name:product,variation_name:variation,updated_by:currentUser.id,updated_at:new Date().toISOString()},{onConflict:'sku'});
     if(error) throw error;
-    appState.catalog.set(sku,{sku,product_name:product,variation_name:variation});
-    appState.catalogByVariation=buildCatalogVariationIndex(appState.catalog);
+    appState.catalog.set(sku,{product_name:product,variation_name:variation});
     const r=appState.summary.find(x=>x.SKU===sku);
     if(r){ r.Produto=product; r.Variacao=variation; r.NomePadronizado=true; }
     closeProductEditor(); renderSummary();
@@ -1126,7 +896,6 @@
     const {error}=await db.from('product_catalog').delete().eq('sku',sku);
     if(error) throw error;
     appState.catalog.delete(sku);
-    appState.catalogByVariation=buildCatalogVariationIndex(appState.catalog);
     closeProductEditor();
     await refreshDashboard(false);
     setStatus(`O SKU ${sku} voltou a usar o nome vindo dos marketplaces.`,'ok');
@@ -1140,7 +909,7 @@
     // periodo. Isso evita que falhas/fallbacks de RPC mostrem itens sem relacao
     // com o texto digitado e garante o mesmo criterio em 7/15/30 dias.
     const data=q
-      ? appState.summary.filter(r=>matchesSummarySearch(r,q))
+      ? appState.summary.filter(r=>normText(`${r.SKU} ${r.Produto} ${r.Variacao}`).includes(q))
       : appState.summary.slice();
     const compareText=(a,b)=>String(a||'').localeCompare(String(b||''),'pt-BR',{sensitivity:'base',numeric:true});
     if(sortField==='product') {
@@ -1177,7 +946,7 @@
 
   function summaryExportRows() {
     return appState.summary.map(r=>({
-      SKU:r.SKU, Produto:r.Produto, 'Variação':r.Variacao, 'Total':r.Total_Liquido, 'Sugestão':r.Pedido_Sugerido??'', 'Média/dia':Math.round(r.Media_Dia), 'Estoque Atual':r.Estoque??'', 'TikTok':r.TikTok_Liquido, 'Mercado Livre':r.Mercado_Livre_Liquido, 'Shopee':r.Shopee_Liquido, 'SHEIN':r.SHEIN_Liquido, 'Amazon':r.Amazon_Pedidas, 'Droga Raia':r.Droga_Raia_Liquido, 'Magazine Luiza':r.Magazine_Luiza_Liquido, 'Beleza na Web':r.Beleza_na_Web_Liquido, 'SKU pendente?':r.SKU_Pendente?'SIM':'NÃO'
+      SKU:r.SKU, Produto:r.Produto, 'Variação':r.Variacao, 'Total Considerado':r.Total_Liquido, 'Sugestão de Compra':r.Pedido_Sugerido??'', 'Média/dia':Math.round(r.Media_Dia), 'Estoque Atual':r.Estoque??'', 'TikTok Líquido':r.TikTok_Liquido, 'Mercado Livre Líquido':r.Mercado_Livre_Liquido, 'Shopee Líquido':r.Shopee_Liquido, 'SHEIN Líquido':r.SHEIN_Liquido, 'Amazon Pedidas':r.Amazon_Pedidas, 'Droga Raia Líquido':r.Droga_Raia_Liquido, 'Magazine Luiza Líquido':r.Magazine_Luiza_Liquido, 'Beleza na Web Líquido':r.Beleza_na_Web_Liquido, 'SKU pendente?':r.SKU_Pendente?'SIM':'NÃO'
     }));
   }
   let lastDownloadUrl=null;
@@ -1371,12 +1140,9 @@
       let imported=0, skipped=0, totalRows=0;
       for(const job of jobs){ const r=await job(); if(r.skipped) skipped++; else { imported++; totalRows+=r.rows||0; } }
       clearFileInputs();
-      // Prioridade: atualizar o resumo primeiro. Historico e status das planilhas
-      // sao informacoes secundarias e nao devem segurar a tabela.
+      await loadImportHistory();
       await loadAvailableRange(false);
       await refreshDashboard(false);
-      loadMarketplaceUpdates().catch(console.warn);
-      loadImportHistory().catch(console.warn);
       setStatus(`Importação concluída: ${imported} arquivo(s) salvo(s), ${skipped} duplicado(s) ignorado(s), ${nf0.format(totalRows)} linhas novas.`,'ok');
     }catch(e){ console.error(e); setStatus(e?.message||String(e),'error'); }
     finally{ btn.disabled=false; btn.textContent='Processar e salvar'; }
@@ -1512,7 +1278,6 @@
         TikTok_Liquido:Number(r.tiktok_liquido||0), Mercado_Livre_Liquido:Number(r.mercado_livre_liquido||0), Shopee_Liquido:Number(r.shopee_liquido||0), SHEIN_Liquido:Number(r.shein_liquido||0), Amazon_Pedidas:Number(r.amazon_pedidas||0), Droga_Raia_Liquido:Number(r.droga_raia_liquido||0), Magazine_Luiza_Liquido:Number(r.magazine_luiza_liquido||0), Beleza_na_Web_Liquido:Number(r.beleza_na_web_liquido||0), Total_Liquido:Number(r.total_considerado||0), Media_Dia:Number(r.media_dia||0), Estoque:null, Pedido_Sugerido:Number(r.pedido_sugerido||0), SKU_Pendente:!!r.sku_pendente
       }));
       appState.catalog=catalog;
-      appState.catalogByVariation=buildCatalogVariationIndex(catalog);
       applyProductCatalog(summary,catalog);
       applyStock(summary,stock);
       const pending=(pend||[]).map(r=>({Marketplace:r.marketplace,Identificador:r.identificador,Produto:r.produto||'',Variacao:cleanVariationLabel(r.variacao||''),VariacaoOrigem:r.variacao||'',Unidades_vendidas:Number(r.unidades_vendidas||0),SKU_sugerido:'',Motivo:'SKU ausente no arquivo de origem'}));
@@ -1549,10 +1314,7 @@
       setStatus('Excluindo importação...','info');
       if(path){ const {error:storageError}=await db.storage.from('marketplace-files').remove([path]); if(storageError) console.warn(storageError); }
       const {error}=await db.from('imports').delete().eq('id',id); if(error) throw error;
-      await loadAvailableRange(false);
-      await refreshDashboard(false);
-      loadMarketplaceUpdates().catch(console.warn);
-      loadImportHistory().catch(console.warn);
+      await loadImportHistory(); await loadAvailableRange(false); await refreshDashboard(false);
       setStatus('Importação excluída.','ok');
     }catch(e){ console.error(e); setStatus(e?.message||String(e),'error'); }
   }
@@ -1578,13 +1340,9 @@
     try{
       const shouldSetDashboardDefault = dashboardDefaultsUserId !== currentUser.id;
       if(shouldSetDashboardDefault) dashboardDefaultsUserId = currentUser.id;
-      // Carrega primeiro somente o que o Resumo por SKU precisa.
       await loadAvailableRange(shouldSetDashboardDefault);
+      if(admin) await loadImportHistory();
       await refreshDashboard(false);
-
-      // Informacoes secundarias carregam em segundo plano para nao atrasar o dashboard.
-      loadMarketplaceUpdates().catch(console.warn);
-      if(admin) loadImportHistory().catch(console.warn);
     }
     catch(e){ console.error(e); setStatus(`O login funcionou, mas houve erro ao carregar os dados: ${e?.message||e}`,'error'); }
   }
