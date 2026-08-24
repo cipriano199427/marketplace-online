@@ -242,14 +242,15 @@
     </div>
 
     <div class="controls">
-      <label><span>Data inicial</span><input id="startDate" type="date" /></label>
-      <label><span>Data final</span><input id="endDate" type="date" /></label>
+      <label><span>Amazon - data inicial</span><input id="startDate" type="date" /></label>
+      <label><span>Amazon - data final</span><input id="endDate" type="date" /></label>
       <label><span>Estoque atual (opcional)</span><input id="stockFile" type="file" accept=".csv,.xlsx,.xls" /></label>
       <div class="actions">
         <button id="processBtn" class="primary">Processar e salvar</button>
         <button id="clearBtn" class="secondary">Limpar</button>
       </div>
     </div>
+    <p class="footnote" style="margin-top:10px">As datas acima são usadas somente para a Amazon, pois o Business Report não traz a data individual de cada pedido. Informe exatamente o mesmo período usado ao gerar o relatório na Amazon.</p>
     <div id="status" class="status info"></div>
   </div>
 
@@ -1364,7 +1365,8 @@
     for(const f of $('sheinFiles').files) jobs.push(()=>parseAndSave(f,'SHEIN',parseShein));
     const am=$('amazonFile').files[0];
     if(am){
-      if(!start||!end){ setStatus('Para importar a Amazon, selecione Data inicial e Data final correspondentes ao Business Report.','warn'); return; }
+      if(!start||!end){ setStatus('Para importar a Amazon, informe a data inicial e a data final exatas do Business Report.','warn'); return; }
+      if(start>end){ setStatus('Amazon: a data inicial não pode ser maior que a data final.','warn'); return; }
       jobs.push(()=>parseAndSave(am,'Amazon',parseAmazon,start,end));
     }
     for(const f of $('raiaFiles').files) jobs.push(()=>parseAndSave(f,'Droga Raia',x=>parsePluggMarketplace(x,'Droga Raia')));
@@ -1442,16 +1444,16 @@
     dashboardAvailableMin=min;
     dashboardAvailableMax=max;
     if(min){
-      $('startDate').min=min; $('endDate').min=min;
       $('dashboardStartDate').min=min; $('dashboardEndDate').min=min;
     }
     if(max){
-      $('startDate').max=max; $('endDate').max=max;
       $('dashboardStartDate').max=max; $('dashboardEndDate').max=max;
     }
     if(setDefaults){
-      if(!$('startDate').value&&min)$('startDate').value=min;
-      if(!$('endDate').value&&max)$('endDate').value=max;
+      // O período de importação da Amazon não deve herdar a menor/maior data do histórico.
+      // Esses campos ficam independentes e devem corresponder exatamente ao Business Report.
+      $('startDate').value='';
+      $('endDate').value='';
       applyQuickDashboardPeriod(15,false);
     }
   }
