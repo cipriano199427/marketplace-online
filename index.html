@@ -224,8 +224,12 @@
         <input id="sheinFiles" type="file" accept=".xlsx,.xls" multiple />
       </div>
       <div class="upload">
-        <div><strong>Amazon</strong><small>Business Report CSV com Título, Código SKU e Unidades pedidas. Informe abaixo exatamente o período usado para gerar o relatório. Se o mesmo arquivo já existir com datas erradas, o sistema corrigirá o período sem duplicar as vendas.</small></div>
-        <input id="amazonFile" type="file" accept=".csv,text/csv" />
+        <div><strong>Amazon - Todos os pedidos</strong><small>TXT/CSV do relatório “Todos os pedidos”. É a fonte principal das vendas: usa data da compra, pedido, SKU, quantidade, status e canal de atendimento (Amazon/FBA ou Merchant/Easy Ship).</small></div>
+        <input id="amazonFile" type="file" accept=".txt,.csv,text/plain,text/csv" multiple />
+      </div>
+      <div class="upload">
+        <div><strong>Amazon - Business Report (opcional)</strong><small>CSV consolidado com Título, Código SKU e Unidades pedidas. Fica salvo apenas para conferência; não é somado ao dashboard para evitar duplicidade com o relatório “Todos os pedidos”.</small></div>
+        <input id="amazonBusinessFile" type="file" accept=".csv,text/csv" />
       </div>
       <div class="upload">
         <div><strong>Droga Raia</strong><small>Um ou vários XLSX de pedidos. O sistema lê todos os blocos Item Sku/Quantidade da mesma linha e remove * dos SKUs.</small></div>
@@ -242,15 +246,15 @@
     </div>
 
     <div class="controls">
-      <label><span>Amazon - data inicial</span><input id="startDate" type="date" /></label>
-      <label><span>Amazon - data final</span><input id="endDate" type="date" /></label>
+      <label><span>Business Report - data inicial</span><input id="startDate" type="date" /></label>
+      <label><span>Business Report - data final</span><input id="endDate" type="date" /></label>
       <label><span>Estoque atual (opcional)</span><input id="stockFile" type="file" accept=".csv,.xlsx,.xls" /></label>
       <div class="actions">
         <button id="processBtn" class="primary">Processar e salvar</button>
         <button id="clearBtn" class="secondary">Limpar</button>
       </div>
     </div>
-    <p class="footnote" style="margin-top:10px">As datas acima são usadas somente para a Amazon, pois o Business Report não traz a data individual de cada pedido. Informe exatamente o mesmo período usado ao gerar o relatório na Amazon.</p>
+    <p class="footnote" style="margin-top:10px">O relatório <strong>Todos os pedidos</strong> já traz a data de cada venda e não precisa das datas acima. Preencha Data inicial/final somente se também enviar o <strong>Business Report</strong> opcional.</p>
     <div id="status" class="status info"></div>
   </div>
 
@@ -339,10 +343,10 @@
     <div class="card section">
       <h2>Regras usadas</h2>
       <details open><summary>Como o líquido é calculado?</summary>
-        <p class="footnote">TikTok: cancelados/não pagos não contam; devoluções informadas reduzem o líquido. Shopee: cancelados/não pagos não contam; somente devolução concluída reduz o líquido. Mercado Livre: estados cancelados não contam; devolução reduz o líquido quando o item consta como apto/recolocado à venda. SHEIN: itens reembolsados/cancelados não contam; os demais status do pedido entram como venda válida. Amazon: o Business Report usa “Unidades pedidas” e não informa cancelamentos/devoluções por SKU; por isso a coluna Amazon representa unidades pedidas no período do relatório, não venda líquida. Droga Raia, Magazine Luiza e Beleza na Web: pedidos com status cancelado não contam; cada bloco Item Sku N / Item Quantidade N da mesma linha vira um item separado e os caracteres * são removidos dos SKUs.</p>
+        <p class="footnote">TikTok: cancelados/não pagos não contam; devoluções informadas reduzem o líquido. Shopee: cancelados/não pagos não contam; somente devolução concluída reduz o líquido. Mercado Livre: estados cancelados não contam; devolução reduz o líquido quando o item consta como apto/recolocado à venda. SHEIN: itens reembolsados/cancelados não contam; os demais status do pedido entram como venda válida. Amazon: o relatório “Todos os pedidos” usa <strong>purchase-date</strong> e <strong>quantity</strong>; linhas canceladas não contam. Pedidos FBA (<strong>fulfillment-channel = Amazon</strong>) e Merchant/Easy Ship entram juntos. O Business Report fica apenas para conferência e não é somado ao dashboard. Droga Raia, Magazine Luiza e Beleza na Web: pedidos com status cancelado não contam; cada bloco Item Sku N / Item Quantidade N da mesma linha vira um item separado e os caracteres * são removidos dos SKUs.</p>
       </details>
       <details><summary>Como a Amazon entra no período?</summary>
-        <p class="footnote">O Business Report da Amazon é consolidado e não traz a data de cada pedido. Ao importar a Amazon, o sistema grava o intervalo selecionado em <strong>Data inicial</strong> e <strong>Data final</strong>. No dashboard, a Amazon é incluída quando o filtro corresponde exatamente a esse período.</p>
+        <p class="footnote">A Amazon agora é filtrada pela <strong>purchase-date</strong> de cada item do relatório “Todos os pedidos”, igual aos demais marketplaces. Por isso 7, 15, 30 dias, mês atual e período personalizado passam a mostrar somente as vendas Amazon que realmente ocorreram dentro do intervalo escolhido. O Business Report não participa da soma para evitar duplicidade.</p>
       </details>
       <details><summary>Como sai o pedido sugerido?</summary>
         <p class="footnote"><code>média diária = total líquido vendido / dias selecionados</code> e é exibida arredondada para um número inteiro. O painel abre por padrão nos <strong>últimos 15 dias disponíveis</strong>, com atalhos para 7, 15, 30 dias, mês passado, esse mês ou período personalizado. A <strong>sugestão de compra</strong> é sempre 15% maior que o total considerado no período escolhido: <code>total considerado × 1,15</code>. O estoque, quando informado, aparece apenas como referência e não altera a sugestão de compra.</p>
@@ -727,15 +731,73 @@
     return out;
   }
 
-  async function parseAmazon(file) {
+  function parseAmazonOrderDate(v) {
+    const s=String(v??'').trim();
+    // O All Orders Report usa ISO (ex.: 2026-08-01T02:50:17+00:00).
+    // Para o filtro do dashboard usamos a data escrita no proprio relatorio,
+    // sem deslocar o dia por causa do fuso horario do navegador.
+    const m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(!m) return null;
+    return new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));
+  }
+
+  async function parseAmazonOrders(file) {
+    const objects = rowsToObjects(parseCSV(await textFile(file)));
+    const required = ['amazon-order-id','purchase-date','order-status','fulfillment-channel','product-name','sku','item-status','quantity','order-item-id'];
+    if (!objects.length || required.some(k => !(k in objects[0]))) {
+      throw new Error(`Amazon (${file.name}): este arquivo não parece ser o relatório “Todos os pedidos”. Faltam colunas como amazon-order-id, purchase-date, sku, quantity ou order-item-id.`);
+    }
+    const out=[];
+    for(const row of objects){
+      const orderId=String(row['amazon-order-id']??'').trim();
+      const itemId=String(row['order-item-id']??'').trim();
+      const date=parseAmazonOrderDate(row['purchase-date']);
+      if(!orderId || !date) continue;
+      const qty=Math.max(0,asNumber(row['quantity']));
+      const orderStatus=String(row['order-status']??'').trim();
+      const itemStatus=String(row['item-status']??'').trim();
+      const combined=normText(`${orderStatus} ${itemStatus}`);
+      const invalid=combined.includes('cancel');
+      // Guardamos tambem uma linha cancelada com quantidade zero. Isso e importante
+      // quando um relatorio mais novo atualiza um pedido antes valido para cancelado:
+      // sales_latest_keys passa a apontar para a versao nova e o pedido deixa de contar.
+      if(qty<=0 && !invalid) continue;
+      const sold=invalid?0:qty;
+      const sku0=normSku(row['sku']);
+      const fulfillment=String(row['fulfillment-channel']??'').trim();
+      out.push({
+        marketplace:'Amazon',
+        order_id:orderId,
+        date,
+        aggregate_period:false,
+        sku:sku0||`SEM_SKU_AMAZON::${itemId||orderId}`,
+        sku_original:sku0,
+        product:String(row['product-name']??'').trim(),
+        variation:'',
+        listing_id:itemId,
+        status:orderStatus,
+        return_status:`${itemStatus}${fulfillment?` • ${fulfillment}`:''}`,
+        units_original:qty,
+        units_cancelled:invalid?qty:0,
+        units_sold:sold,
+        units_returned:0,
+        units_return_pending:0,
+        units_net:sold,
+        sku_pending:!sku0
+      });
+    }
+    return out;
+  }
+
+  async function parseAmazonBusiness(file) {
     const objects = rowsToObjects(parseCSV(await textFile(file)));
     const required = ['Título','Código SKU','Unidades pedidas'];
-    if (!objects.length || required.some(k => !(k in objects[0]))) throw new Error('O CSV da Amazon não contém as colunas esperadas: Título, Código SKU e Unidades pedidas.');
+    if (!objects.length || required.some(k => !(k in objects[0]))) throw new Error('Amazon Business Report: faltam as colunas Título, Código SKU e Unidades pedidas.');
     const out = [];
     for (const row of objects) {
       const qty = asAmazonUnits(row['Unidades pedidas']); if (qty <= 0) continue;
       const sku0 = normSku(row['Código SKU']);
-      out.push({ marketplace:'Amazon', order_id:'', date:null, aggregate_period:true, sku:sku0||'SEM_SKU_AMAZON', sku_original:sku0, product:String(row['Título']??'').trim(), variation:'', listing_id:'', status:'Business Report', return_status:'', units_original:qty, units_cancelled:0, units_sold:qty, units_returned:0, units_return_pending:0, units_net:qty, sku_pending:!sku0 });
+      out.push({ marketplace:'Amazon', order_id:'', date:null, aggregate_period:true, sku:sku0||'SEM_SKU_AMAZON', sku_original:sku0, product:String(row['Título']??'').trim(), variation:'', listing_id:'', status:'Business Report (conferência)', return_status:'', units_original:qty, units_cancelled:0, units_sold:qty, units_returned:0, units_return_pending:0, units_net:qty, sku_pending:!sku0 });
     }
     return out;
   }
@@ -938,9 +1000,9 @@
     if(start>end) throw new Error('A Data inicial não pode ser maior que a Data final.');
     const startDay=new Date(start.getFullYear(),start.getMonth(),start.getDate());
     const endDay=new Date(end.getFullYear(),end.getMonth(),end.getDate());
-    const amazonRows=base.filter(r=>r.marketplace==='Amazon'&&r.aggregate_period);
     const selected=base.filter(r=>{
-      if(r.marketplace==='Amazon'&&r.aggregate_period) return true;
+      // Business Report e apenas conferencia; vendas Amazon do dashboard vem do All Orders.
+      if(r.marketplace==='Amazon'&&r.aggregate_period) return false;
       return r.date instanceof Date&&!isNaN(r.date)&&r.date>=start&&r.date<=end;
     });
     const days=Math.floor((endDay-startDay)/86400000)+1;
@@ -1260,7 +1322,7 @@
     XLSX.utils.book_append_sheet(wb,ws,'Resumo_SKU');
     const wp=XLSX.utils.json_to_sheet(appState.pending.length?appState.pending:[{Informacao:'Nenhuma pendência de SKU encontrada.'}]);
     XLSX.utils.book_append_sheet(wb,wp,'Pendencias_SKU');
-    const wr=XLSX.utils.aoa_to_sheet([['Parâmetro','Valor'],['Início',fmtDate(appState.metrics.start)],['Fim',fmtDate(appState.metrics.end)],['Dias selecionados',appState.metrics.days],['Linhas no período',appState.metrics.rows],['SKUs identificados',appState.metrics.distinctSkus],['Unidades sem SKU',appState.metrics.pendingUnits],['Amazon','O Business Report enviado é considerado como correspondente ao período geral selecionado.'],['Droga Raia / Magazine Luiza / Beleza na Web','Cada Item Sku N é processado separadamente; * é removido do SKU; pedidos cancelados não contam.'],['Regra da sugestão','Total considerado no período selecionado × 1,15 (15% adicional). O estoque é apenas informativo.']]);
+    const wr=XLSX.utils.aoa_to_sheet([['Parâmetro','Valor'],['Início',fmtDate(appState.metrics.start)],['Fim',fmtDate(appState.metrics.end)],['Dias selecionados',appState.metrics.days],['Linhas no período',appState.metrics.rows],['SKUs identificados',appState.metrics.distinctSkus],['Unidades sem SKU',appState.metrics.pendingUnits],['Amazon','Vendas calculadas pelo relatório Todos os pedidos usando purchase-date, quantity e status. Business Report é somente conferência e não entra na soma.'],['Droga Raia / Magazine Luiza / Beleza na Web','Cada Item Sku N é processado separadamente; * é removido do SKU; pedidos cancelados não contam.'],['Regra da sugestão','Total considerado no período selecionado × 1,15 (15% adicional). O estoque é apenas informativo.']]);
     XLSX.utils.book_append_sheet(wb,wr,'Config');
     const bytes=XLSX.write(wb,{bookType:'xlsx',type:'array'});
     const result=await saveBlob(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),'relatorio_vendas_por_sku.xlsx','Excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',['.xlsx']);
@@ -1333,7 +1395,7 @@
       // O Business Report da Amazon nao possui data por pedido. Se o mesmo arquivo
       // ja foi salvo com um periodo incorreto, permitir corrigir somente o periodo
       // sem duplicar as linhas de sales_items nem reenviar o arquivo ao Storage.
-      if(marketplace==='Amazon' && (existing.period_start!==period.start || existing.period_end!==period.end)){
+      if(marketplace==='Amazon' && rows.some(r=>r.aggregate_period) && (existing.period_start!==period.start || existing.period_end!==period.end)){
         const {error:updateError}=await db.from('imports').update({period_start:period.start,period_end:period.end}).eq('id',existing.id);
         if(updateError) throw updateError;
         return {skipped:false,name:file.name,rows:0,units:0,periodUpdated:true,periodStart:period.start,periodEnd:period.end};
@@ -1373,11 +1435,13 @@
     const ml=$('mlFile').files[0]; if(ml) jobs.push(()=>parseAndSave(ml,'Mercado Livre',parseMercadoLivre));
     for(const f of $('shopeeFiles').files) jobs.push(()=>parseAndSave(f,'Shopee',parseShopee));
     for(const f of $('sheinFiles').files) jobs.push(()=>parseAndSave(f,'SHEIN',parseShein));
-    const am=$('amazonFile').files[0];
-    if(am){
-      if(!start||!end){ setStatus('Para importar a Amazon, informe a data inicial e a data final exatas do Business Report.','warn'); return; }
-      if(start>end){ setStatus('Amazon: a data inicial não pode ser maior que a data final.','warn'); return; }
-      jobs.push(()=>parseAndSave(am,'Amazon',parseAmazon,start,end));
+    const amazonOrderFiles=[...$('amazonFile').files];
+    for(const f of amazonOrderFiles) jobs.push(()=>parseAndSave(f,'Amazon',parseAmazonOrders));
+    const amazonBusiness=$('amazonBusinessFile').files[0];
+    if(amazonBusiness){
+      if(!start||!end){ setStatus('Amazon Business Report: informe a data inicial e a data final exatas do relatório.','warn'); return; }
+      if(start>end){ setStatus('Amazon Business Report: a data inicial não pode ser maior que a data final.','warn'); return; }
+      jobs.push(()=>parseAndSave(amazonBusiness,'Amazon',parseAmazonBusiness,start,end));
     }
     for(const f of $('raiaFiles').files) jobs.push(()=>parseAndSave(f,'Droga Raia',x=>parsePluggMarketplace(x,'Droga Raia')));
     for(const f of $('magaluFiles').files) jobs.push(()=>parseAndSave(f,'Magazine Luiza',x=>parsePluggMarketplace(x,'Magazine Luiza')));
@@ -1393,6 +1457,10 @@
         else if(r.skipped) skipped++;
         else { imported++; totalRows+=r.rows||0; }
       }
+      if(amazonOrderFiles.length){
+        const {error:aliasError}=await db.rpc('sync_amazon_sku_aliases');
+        if(aliasError) console.warn('Aliases Amazon não sincronizados automaticamente:',aliasError);
+      }
       clearFileInputs();
       await loadAvailableRange(false);
       const dashboardTask=refreshDashboard(false);
@@ -1404,7 +1472,7 @@
     }catch(e){ console.error(e); setStatus(e?.message||String(e),'error'); }
     finally{ btn.disabled=false; btn.textContent='Processar e salvar'; }
   }
-  function clearFileInputs(){ ['tiktokFile','mlFile','shopeeFiles','sheinFiles','amazonFile','raiaFiles','magaluFiles','belezaFiles','stockFile'].forEach(id=>$(id).value=''); }
+  function clearFileInputs(){ ['tiktokFile','mlFile','shopeeFiles','sheinFiles','amazonFile','amazonBusinessFile','raiaFiles','magaluFiles','belezaFiles','stockFile'].forEach(id=>$(id).value=''); }
   function clearAll(){ clearFileInputs(); $('searchSku').value=''; clearStatus(); }
 
   function addDaysIso(iso, delta){
@@ -1466,8 +1534,8 @@
       $('dashboardStartDate').max=max; $('dashboardEndDate').max=max;
     }
     if(setDefaults){
-      // O período de importação da Amazon não deve herdar a menor/maior data do histórico.
-      // Esses campos ficam independentes e devem corresponder exatamente ao Business Report.
+      // Datas manuais sao usadas apenas pelo Business Report opcional.
+      // O All Orders Report traz purchase-date em cada pedido.
       $('startDate').value='';
       $('endDate').value='';
       applyQuickDashboardPeriod(15,false);
