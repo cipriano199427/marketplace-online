@@ -85,7 +85,12 @@
     td { padding: 10px 12px; border-bottom: 1px solid #edf1f5; vertical-align: top; }
     tr:hover td { background: #fafcff; }
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-    th.marketplace-col { text-align:center; padding:8px 6px; min-width:60px; }
+    .market-cell { min-width:74px; }
+    .market-cell .market-qty { font-weight:700; }
+    .last-sale { margin-top:3px; font-size:10px; line-height:1.15; color:#667085; white-space:nowrap; font-weight:600; }
+    .last-sale.report-date { color:#8a6116; }
+    .last-sale.loading { color:#98a2b3; }
+    th.marketplace-col { text-align:center; padding:8px 6px; min-width:74px; }
     .head-logo { width:34px; height:34px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:900; line-height:1; letter-spacing:.02em; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
     .head-logo.tt { background:#111827; color:#fff; }
     .head-logo.ml { background:#ffe600; color:#111827; }
@@ -348,6 +353,7 @@
           <tbody></tbody>
         </table>
       </div>
+      <p class="footnote" style="margin:8px 2px 0"><strong>Últ.</strong> = última venda conhecida no histórico completo do marketplace. <strong>Rel.</strong> = data final do último relatório quando a origem não informa a data individual da venda.</p>
     </div>
 
     <div class="card section">
@@ -461,7 +467,7 @@
 
 
   const PT_MONTHS = { janeiro:1, fevereiro:2, marco:3, abril:4, maio:5, junho:6, julho:7, agosto:8, setembro:9, outubro:10, novembro:11, dezembro:12 };
-  let appState = { summary: [], pending: [], base: [], metrics: null, stock: null, hasStock: false, catalog: new Map(), catalogByVariation: new Map(), catalogMatchIndex: [], loadedSearch: '' };
+  let appState = { summary: [], pending: [], base: [], metrics: null, stock: null, hasStock: false, catalog: new Map(), catalogByVariation: new Map(), catalogMatchIndex: [], loadedSearch: '', lastSales: new Map(), lastSalesLoaded: false, lastSalesLoading: null };
   let dashboardAvailableMin = null;
   let dashboardAvailableMax = null;
   let dashboardPeriodMode = '15';
@@ -1492,6 +1498,7 @@
       const {error}=await db.rpc('resolve_pending_sku_alias',{p_marketplace:r.Marketplace,p_source_sku:source,p_canonical_sku:target});
       if(error) throw error;
       closePendingResolver();
+      invalidateLastSales();
       await refreshDashboard(false);
       setStatus(`${source} foi associado ao SKU ${target}.`,'ok');
     } else {
@@ -1503,9 +1510,79 @@
       const {error}=await db.rpc('resolve_pending_sku_create',{p_marketplace:r.Marketplace,p_source_sku:source,p_new_sku:newSku,p_product_name:product,p_variation_name:variation});
       if(error) throw error;
       closePendingResolver();
+      invalidateLastSales();
       await refreshDashboard(false);
       setStatus(`Novo SKU ${newSku} criado e pendência resolvida.`,'ok');
     }
+  }
+
+  function invalidateLastSales(){
+    appState.lastSales=new Map();
+    appState.lastSalesLoaded=false;
+    appState.lastSalesLoading=null;
+  }
+  function shortDbDate(value){
+    if(!value) return '';
+    const s=String(value).trim();
+    const m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(m) return `${m[3]}/${m[2]}/${m[1].slice(2)}`;
+    const d=new Date(value);
+    if(isNaN(d)) return '';
+    return new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}).format(d);
+  }
+  function lastSaleFor(sku, marketplace){
+    const info=appState.lastSales.get(normSku(sku));
+    if(!info) return null;
+    return info[marketplace]||null;
+  }
+  function marketplaceSummaryCell(qty, sku, marketplace){
+    const quantity=`<div class="market-qty">${nf2.format(Number(qty||0))}</div>`;
+    if(!appState.lastSalesLoaded) return `<td class="num market-cell">${quantity}<div class="last-sale loading">Últ.: …</div></td>`;
+    const info=lastSaleFor(sku,marketplace);
+    if(!info || !info.date) return `<td class="num market-cell">${quantity}<div class="last-sale">Últ.: —</div></td>`;
+    const dateText=shortDbDate(info.date)||'—';
+    const exact=info.exact!==false;
+    const label=exact?'Últ.':'Rel.';
+    const cls=exact?'':' report-date';
+    const title=exact
+      ? `Última venda registrada em ${marketplace}: ${dateText}`
+      : `Data final do último relatório disponível para ${marketplace}: ${dateText}. A origem não informa a data individual da venda.`;
+    return `<td class="num market-cell" title="${esc(title)}">${quantity}<div class="last-sale${cls}">${label}: ${esc(dateText)}</div></td>`;
+  }
+  async function loadLastSales(force=false){
+    if(!currentUser) return appState.lastSales;
+    if(appState.lastSalesLoaded && !force) return appState.lastSales;
+    if(appState.lastSalesLoading && !force) return appState.lastSalesLoading;
+    const task=(async()=>{
+      const rows=await fetchAllRpcRows('get_last_sales_by_sku',{},1000);
+      const map=new Map();
+      for(const r of rows||[]){
+        const sku=normSku(r.sku);
+        if(!sku) continue;
+        map.set(sku,{
+          TikTok:{date:r.tiktok_last_sale||null,exact:r.tiktok_exact!==false},
+          'Mercado Livre':{date:r.mercado_livre_last_sale||null,exact:r.mercado_livre_exact!==false},
+          Shopee:{date:r.shopee_last_sale||null,exact:r.shopee_exact!==false},
+          SHEIN:{date:r.shein_last_sale||null,exact:r.shein_exact!==false},
+          Amazon:{date:r.amazon_last_sale||null,exact:r.amazon_exact!==false},
+          'Droga Raia':{date:r.droga_raia_last_sale||null,exact:r.droga_raia_exact!==false},
+          'Magazine Luiza':{date:r.magazine_luiza_last_sale||null,exact:r.magazine_luiza_exact!==false},
+          'Beleza na Web':{date:r.beleza_na_web_last_sale||null,exact:r.beleza_na_web_exact!==false}
+        });
+      }
+      appState.lastSales=map;
+      appState.lastSalesLoaded=true;
+      return map;
+    })();
+    appState.lastSalesLoading=task;
+    try { return await task; }
+    finally { if(appState.lastSalesLoading===task) appState.lastSalesLoading=null; }
+  }
+  function exportLastSale(sku,marketplace){
+    const info=lastSaleFor(sku,marketplace);
+    if(!info?.date) return '';
+    const prefix=info.exact===false?'Rel. ':'';
+    return prefix+shortDbDate(info.date);
   }
 
   function renderSummary() {
@@ -1534,7 +1611,7 @@
     for(const r of data){
       const tr=document.createElement('tr'); if(r.SKU_Pendente)tr.className='pending-row';
       const editCell=admin?`<td>${r.SKU_Pendente?'—':`<button type="button" class="secondary mini edit-name-btn" data-edit-product="${esc(r.SKU)}">${r.NomePadronizado?'Editar padrão':'Padronizar'}</button>`}</td>`:'';
-      tr.innerHTML=`<td class="sku">${esc(r.SKU)}</td><td>${esc(r.Produto)}</td><td>${esc(r.Variacao||'')}</td><td class="num"><strong>${nf2.format(r.Total_Liquido)}</strong></td><td class="num"><strong>${nf0.format(r.Pedido_Sugerido)}</strong></td><td class="num">${nf0.format(Math.round(r.Media_Dia))}</td><td class="num">${r.Estoque===null?'—':nf2.format(r.Estoque)}</td><td class="num">${nf2.format(r.TikTok_Liquido)}</td><td class="num">${nf2.format(r.Mercado_Livre_Liquido)}</td><td class="num">${nf2.format(r.Shopee_Liquido)}</td><td class="num">${nf2.format(r.SHEIN_Liquido)}</td><td class="num">${nf2.format(r.Amazon_Pedidas)}</td><td class="num">${nf2.format(r.Droga_Raia_Liquido)}</td><td class="num">${nf2.format(r.Magazine_Luiza_Liquido)}</td><td class="num">${nf2.format(r.Beleza_na_Web_Liquido)}</td><td>${r.SKU_Pendente?'<span class="pill warn">SIM</span>':'<span class="pill ok">NÃO</span>'}</td>${editCell}`; frag.appendChild(tr);
+      tr.innerHTML=`<td class="sku">${esc(r.SKU)}</td><td>${esc(r.Produto)}</td><td>${esc(r.Variacao||'')}</td><td class="num"><strong>${nf2.format(r.Total_Liquido)}</strong></td><td class="num"><strong>${nf0.format(r.Pedido_Sugerido)}</strong></td><td class="num">${nf0.format(Math.round(r.Media_Dia))}</td><td class="num">${r.Estoque===null?'—':nf2.format(r.Estoque)}</td>${marketplaceSummaryCell(r.TikTok_Liquido,r.SKU,'TikTok')}${marketplaceSummaryCell(r.Mercado_Livre_Liquido,r.SKU,'Mercado Livre')}${marketplaceSummaryCell(r.Shopee_Liquido,r.SKU,'Shopee')}${marketplaceSummaryCell(r.SHEIN_Liquido,r.SKU,'SHEIN')}${marketplaceSummaryCell(r.Amazon_Pedidas,r.SKU,'Amazon')}${marketplaceSummaryCell(r.Droga_Raia_Liquido,r.SKU,'Droga Raia')}${marketplaceSummaryCell(r.Magazine_Luiza_Liquido,r.SKU,'Magazine Luiza')}${marketplaceSummaryCell(r.Beleza_na_Web_Liquido,r.SKU,'Beleza na Web')}<td>${r.SKU_Pendente?'<span class="pill warn">SIM</span>':'<span class="pill ok">NÃO</span>'}</td>${editCell}`; frag.appendChild(tr);
     }
     body.appendChild(frag);
   }
@@ -1568,7 +1645,7 @@
 
   function summaryExportRows() {
     return appState.summary.map(r=>({
-      SKU:r.SKU, Produto:r.Produto, 'Variação':r.Variacao, 'Total':r.Total_Liquido, 'Sugestão':r.Pedido_Sugerido??'', 'Média/dia':Math.round(r.Media_Dia), 'Estoque Atual':r.Estoque??'', 'TikTok':r.TikTok_Liquido, 'Mercado Livre':r.Mercado_Livre_Liquido, 'Shopee':r.Shopee_Liquido, 'SHEIN':r.SHEIN_Liquido, 'Amazon':r.Amazon_Pedidas, 'Droga Raia':r.Droga_Raia_Liquido, 'Magazine Luiza':r.Magazine_Luiza_Liquido, 'Beleza na Web':r.Beleza_na_Web_Liquido, 'SKU pendente?':r.SKU_Pendente?'SIM':'NÃO'
+      SKU:r.SKU, Produto:r.Produto, 'Variação':r.Variacao, 'Total':r.Total_Liquido, 'Sugestão':r.Pedido_Sugerido??'', 'Média/dia':Math.round(r.Media_Dia), 'Estoque Atual':r.Estoque??'', 'TikTok':r.TikTok_Liquido, 'Última venda TikTok':exportLastSale(r.SKU,'TikTok'), 'Mercado Livre':r.Mercado_Livre_Liquido, 'Última venda Mercado Livre':exportLastSale(r.SKU,'Mercado Livre'), 'Shopee':r.Shopee_Liquido, 'Última venda Shopee':exportLastSale(r.SKU,'Shopee'), 'SHEIN':r.SHEIN_Liquido, 'Última venda SHEIN':exportLastSale(r.SKU,'SHEIN'), 'Amazon':r.Amazon_Pedidas, 'Última venda Amazon':exportLastSale(r.SKU,'Amazon'), 'Droga Raia':r.Droga_Raia_Liquido, 'Última venda Droga Raia':exportLastSale(r.SKU,'Droga Raia'), 'Magazine Luiza':r.Magazine_Luiza_Liquido, 'Última venda Magazine Luiza':exportLastSale(r.SKU,'Magazine Luiza'), 'Beleza na Web':r.Beleza_na_Web_Liquido, 'Última venda Beleza na Web':exportLastSale(r.SKU,'Beleza na Web'), 'SKU pendente?':r.SKU_Pendente?'SIM':'NÃO'
     }));
   }
   let lastDownloadUrl=null;
@@ -1784,6 +1861,7 @@
         if(aliasError) console.warn('Aliases Amazon não sincronizados automaticamente:',aliasError);
       }
       clearFileInputs();
+      invalidateLastSales();
       await loadAvailableRange(false);
       const dashboardTask=refreshDashboard(false);
       loadImportHistory().catch(e=>console.warn('Historico de importacoes:',e));
@@ -1944,6 +2022,19 @@
       $('mPending').textContent='…';
       $('summaryCaption').textContent=`${fmtDate(sDate)} a ${fmtDate(eDate)} • dados salvos no Supabase`;
       if(showStatus)setStatus(`Dashboard atualizado: ${nf0.format(appState.metrics.netUnits)} unidades consideradas e ${nf0.format(summary.reduce((s,r)=>s+r.Pedido_Sugerido,0))} sugeridas para compra.`,'ok');
+
+      // Ultimas vendas carregam em segundo plano e nunca bloqueiam o resumo principal.
+      loadLastSales(false)
+        .then(()=>{
+          if($('dashboardStartDate').value!==start || $('dashboardEndDate').value!==end) return;
+          renderSummary();
+        })
+        .catch(e=>{
+          console.warn('Ultimas vendas por marketplace:',e);
+          appState.lastSales=new Map();
+          appState.lastSalesLoaded=true;
+          if($('dashboardStartDate').value===start && $('dashboardEndDate').value===end) renderSummary();
+        });
 
       // Pendencias carregam depois e nunca bloqueiam o resumo.
       const pendingBody=$('pendingTable')?.querySelector('tbody');
