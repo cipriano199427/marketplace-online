@@ -467,7 +467,7 @@
 
 
   const PT_MONTHS = { janeiro:1, fevereiro:2, marco:3, abril:4, maio:5, junho:6, julho:7, agosto:8, setembro:9, outubro:10, novembro:11, dezembro:12 };
-  let appState = { summary: [], pending: [], base: [], metrics: null, stock: null, hasStock: false, catalog: new Map(), catalogByVariation: new Map(), catalogMatchIndex: [], loadedSearch: '', lastSales: new Map(), lastSalesLoaded: false, lastSalesLoading: null };
+  let appState = { summary: [], pending: [], base: [], metrics: null, stock: null, hasStock: false, catalog: new Map(), catalogByVariation: new Map(), catalogMatchIndex: [], loadedSearch: '', lastSales: new Map(), lastSalesLoaded: false, lastSalesLoading: null, lastSalesPeriodKey: '' };
   let dashboardAvailableMin = null;
   let dashboardAvailableMax = null;
   let dashboardPeriodMode = '15';
@@ -1520,6 +1520,7 @@
     appState.lastSales=new Map();
     appState.lastSalesLoaded=false;
     appState.lastSalesLoading=null;
+    appState.lastSalesPeriodKey='';
   }
   function shortDbDate(value){
     if(!value) return '';
@@ -1545,16 +1546,24 @@
     const label=exact?'Últ.':'Rel.';
     const cls=exact?'':' report-date';
     const title=exact
-      ? `Última venda registrada em ${marketplace}: ${dateText}`
-      : `Data final do último relatório disponível para ${marketplace}: ${dateText}. A origem não informa a data individual da venda.`;
+      ? `Última venda de ${marketplace} dentro do período selecionado: ${dateText}`
+      : `Data final do relatório de ${marketplace} correspondente ao período selecionado: ${dateText}. A origem não informa a data individual da venda.`;
     return `<td class="num market-cell" title="${esc(title)}">${quantity}<div class="last-sale${cls}">${label}: ${esc(dateText)}</div></td>`;
   }
-  async function loadLastSales(force=false){
+  async function loadLastSales(start,end,force=false){
     if(!currentUser) return appState.lastSales;
-    if(appState.lastSalesLoaded && !force) return appState.lastSales;
-    if(appState.lastSalesLoading && !force) return appState.lastSalesLoading;
+    const periodKey=`${start}|${end}`;
+    if(appState.lastSalesLoaded && appState.lastSalesPeriodKey===periodKey && !force) return appState.lastSales;
+    if(appState.lastSalesLoading && appState.lastSalesPeriodKey===periodKey && !force) return appState.lastSalesLoading;
+
+    // Ao trocar 7/15/30 dias, limpamos a data antiga imediatamente para nunca
+    // exibir uma ultima venda pertencente a outro periodo.
+    appState.lastSales=new Map();
+    appState.lastSalesLoaded=false;
+    appState.lastSalesPeriodKey=periodKey;
+
     const task=(async()=>{
-      const rows=await fetchAllRpcRows('get_last_sales_by_sku',{},1000);
+      const rows=await fetchAllRpcRows('get_last_sales_by_sku',{p_start:start,p_end:end},1000);
       const map=new Map();
       for(const r of rows||[]){
         const sku=normSku(r.sku);
@@ -1570,6 +1579,8 @@
           'Beleza na Web':{date:r.beleza_na_web_last_sale||null,exact:r.beleza_na_web_exact!==false}
         });
       }
+      // Ignora uma resposta antiga se o usuario mudou o periodo enquanto a RPC carregava.
+      if(appState.lastSalesPeriodKey!==periodKey) return appState.lastSales;
       appState.lastSales=map;
       appState.lastSalesLoaded=true;
       return map;
@@ -2024,15 +2035,18 @@
       if(showStatus)setStatus(`Dashboard atualizado: ${nf0.format(appState.metrics.netUnits)} unidades consideradas e ${nf0.format(summary.reduce((s,r)=>s+r.Pedido_Sugerido,0))} sugeridas para compra.`,'ok');
 
       // Ultimas vendas carregam em segundo plano e nunca bloqueiam o resumo principal.
-      loadLastSales(false)
+      loadLastSales(start,end,false)
         .then(()=>{
           if($('dashboardStartDate').value!==start || $('dashboardEndDate').value!==end) return;
           renderSummary();
         })
         .catch(e=>{
           console.warn('Ultimas vendas por marketplace:',e);
-          appState.lastSales=new Map();
-          appState.lastSalesLoaded=true;
+          const periodKey=`${start}|${end}`;
+          if(appState.lastSalesPeriodKey===periodKey){
+            appState.lastSales=new Map();
+            appState.lastSalesLoaded=true;
+          }
           if($('dashboardStartDate').value===start && $('dashboardEndDate').value===end) renderSummary();
         });
 
