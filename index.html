@@ -68,8 +68,25 @@
     .section { margin-top: 20px; }
     .section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
     .section-head h2 { margin: 0; }
-    .filters { display: flex; gap: 8px; flex-wrap: wrap; }
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items:flex-start; }
     .filters input { min-width: 260px; }
+    .marketplace-filter { position:relative; min-width:235px; }
+    .marketplace-filter-btn { width:100%; min-height:42px; display:flex; align-items:center; justify-content:space-between; gap:10px; background:#fff; color:var(--text); border:1px solid #cfd8e4; border-radius:10px; padding:10px 12px; font-weight:700; }
+    .marketplace-filter-btn:hover { border-color:#9fb2c6; background:#fbfdff; }
+    .marketplace-filter-btn .filter-main { display:flex; align-items:center; gap:8px; min-width:0; }
+    .marketplace-filter-btn .filter-title { color:var(--muted); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.03em; }
+    .marketplace-filter-btn .filter-value { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .marketplace-filter-btn .filter-chevron { font-size:17px; line-height:1; transition:transform .15s ease; color:var(--primary); }
+    .marketplace-filter.open .filter-chevron { transform:rotate(180deg); }
+    .marketplace-filter-menu { display:none; position:absolute; z-index:30; top:calc(100% + 6px); left:0; width:min(330px,calc(100vw - 38px)); max-height:390px; overflow:auto; padding:7px; background:#fff; border:1px solid #d6dee8; border-radius:12px; box-shadow:0 14px 34px rgba(20,35,60,.18); }
+    .marketplace-filter.open .marketplace-filter-menu { display:block; }
+    .market-filter-option { display:flex; align-items:center; gap:9px; padding:9px 10px; border-radius:9px; cursor:pointer; user-select:none; }
+    .market-filter-option:hover { background:#f4f7fb; }
+    .market-filter-option + .market-filter-option { margin-top:1px; }
+    .market-filter-option.all { border-bottom:1px solid #edf1f5; border-radius:8px 8px 0 0; margin-bottom:5px; padding-bottom:11px; font-weight:800; }
+    .market-filter-option input[type=checkbox] { width:18px; height:18px; min-width:18px; margin:0; accent-color:var(--primary); }
+    .market-filter-option .market-mini { width:29px; height:29px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; font-size:9px; font-weight:900; }
+    .market-filter-option .market-option-name { line-height:1.25; font-size:13px; }
     .dashboard-tools { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap; width:100%; }
     .period-filter { display:flex; flex-direction:column; gap:7px; }
     .period-filter-label { color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
@@ -122,6 +139,8 @@
       .shell { padding: 16px; }
       .grid-3, .grid-4, .grid-5, .controls { grid-template-columns: 1fr; }
       .filters input { min-width: 0; width: 100%; }
+      .marketplace-filter { width:100%; min-width:0; }
+      .marketplace-filter-menu { width:100%; }
       .dashboard-tools { align-items:stretch; }
       .custom-period { grid-template-columns:1fr; }
       .updates-grid { grid-template-columns:1fr; }
@@ -327,6 +346,23 @@
             </div>
           </div>
           <div class="filters">
+            <div id="marketplaceFilter" class="marketplace-filter">
+              <button id="marketplaceFilterBtn" type="button" class="marketplace-filter-btn" aria-haspopup="true" aria-expanded="false">
+                <span class="filter-main"><span aria-hidden="true">◉</span><span><span class="filter-title">Marketplace</span><span id="marketplaceFilterText" class="filter-value">Todas</span></span></span>
+                <span class="filter-chevron" aria-hidden="true">⌄</span>
+              </button>
+              <div id="marketplaceFilterMenu" class="marketplace-filter-menu" role="menu">
+                <label class="market-filter-option all"><input id="marketplaceAll" type="checkbox" checked><span>Todos os marketplaces</span></label>
+                <label class="market-filter-option"><input type="checkbox" data-market-filter value="TikTok" checked><span class="market-mini head-logo tt">TT</span><span class="market-option-name">TikTok</span></label>
+                <label class="market-filter-option"><input type="checkbox" data-market-filter value="Mercado Livre" checked><span class="market-mini head-logo ml">ML</span><span class="market-option-name">Mercado Livre</span></label>
+                <label class="market-filter-option"><input type="checkbox" data-market-filter value="Shopee" checked><span class="market-mini head-logo sp">SP</span><span class="market-option-name">Shopee</span></label>
+                <label class="market-filter-option"><input type="checkbox" data-market-filter value="SHEIN" checked><span class="market-mini head-logo sh">SH</span><span class="market-option-name">SHEIN</span></label>
+                <label class="market-filter-option"><input type="checkbox" data-market-filter value="Amazon" checked><span class="market-mini head-logo amz">AMZ</span><span class="market-option-name">Amazon</span></label>
+                <label class="market-filter-option"><input type="checkbox" data-market-filter value="Droga Raia" checked><span class="market-mini head-logo dr">DR</span><span class="market-option-name">Droga Raia</span></label>
+                <label class="market-filter-option"><input type="checkbox" data-market-filter value="Magazine Luiza" checked><span class="market-mini head-logo mag">MGL</span><span class="market-option-name">Magazine Luiza</span></label>
+                <label class="market-filter-option"><input type="checkbox" data-market-filter value="Beleza na Web" checked><span class="market-mini head-logo blz">BLZ</span><span class="market-option-name">Beleza na Web</span></label>
+              </div>
+            </div>
             <input id="searchSku" type="text" placeholder="Buscar SKU, produto ou variação..." />
             <select id="sortProducts" aria-label="Escolher campo de ordenação">
               <option value="sales">Mais vendidos</option>
@@ -348,12 +384,12 @@
           <thead><tr>
             <th>SKU</th><th>Produto</th><th>Variação</th>
             <th class="num">Total</th><th class="num">Sugestão</th><th class="num">Média/dia</th><th class="num">Estoque</th>
-            <th class="num marketplace-col" title="TikTok" aria-label="TikTok"><span class="head-logo tt">TT</span></th><th class="num marketplace-col" title="Mercado Livre" aria-label="Mercado Livre"><span class="head-logo ml">ML</span></th><th class="num marketplace-col" title="Shopee" aria-label="Shopee"><span class="head-logo sp">SP</span></th><th class="num marketplace-col" title="SHEIN" aria-label="SHEIN"><span class="head-logo sh">SH</span></th><th class="num marketplace-col" title="Amazon" aria-label="Amazon"><span class="head-logo amz">AMZ</span></th><th class="num marketplace-col" title="Droga Raia" aria-label="Droga Raia"><span class="head-logo dr">DR</span></th><th class="num marketplace-col" title="Magazine Luiza" aria-label="Magazine Luiza"><span class="head-logo mag">MGL</span></th><th class="num marketplace-col" title="Beleza na Web" aria-label="Beleza na Web"><span class="head-logo blz">BLZ</span></th><th>SKU pendente?</th><th id="productEditHeader" style="display:none">Padronização</th>
+            <th class="num marketplace-col" data-marketplace="TikTok" title="TikTok" aria-label="TikTok"><span class="head-logo tt">TT</span></th><th class="num marketplace-col" data-marketplace="Mercado Livre" title="Mercado Livre" aria-label="Mercado Livre"><span class="head-logo ml">ML</span></th><th class="num marketplace-col" data-marketplace="Shopee" title="Shopee" aria-label="Shopee"><span class="head-logo sp">SP</span></th><th class="num marketplace-col" data-marketplace="SHEIN" title="SHEIN" aria-label="SHEIN"><span class="head-logo sh">SH</span></th><th class="num marketplace-col" data-marketplace="Amazon" title="Amazon" aria-label="Amazon"><span class="head-logo amz">AMZ</span></th><th class="num marketplace-col" data-marketplace="Droga Raia" title="Droga Raia" aria-label="Droga Raia"><span class="head-logo dr">DR</span></th><th class="num marketplace-col" data-marketplace="Magazine Luiza" title="Magazine Luiza" aria-label="Magazine Luiza"><span class="head-logo mag">MGL</span></th><th class="num marketplace-col" data-marketplace="Beleza na Web" title="Beleza na Web" aria-label="Beleza na Web"><span class="head-logo blz">BLZ</span></th><th>SKU pendente?</th><th id="productEditHeader" style="display:none">Padronização</th>
           </tr></thead>
           <tbody></tbody>
         </table>
       </div>
-      <p class="footnote" style="margin:8px 2px 0"><strong>Últ.</strong> = última venda conhecida no histórico completo do marketplace. <strong>Rel.</strong> = data final do último relatório quando a origem não informa a data individual da venda.</p>
+      <p class="footnote" style="margin:8px 2px 0"><strong>Últ.</strong> = última venda encontrada dentro do período selecionado. <strong>Rel.</strong> = data de referência do relatório dentro do mesmo período quando a origem não informa a data individual da venda.</p>
     </div>
 
     <div class="card section">
@@ -483,6 +519,18 @@
     { key:'Magazine Luiza', label:'Magazine Luiza', short:'MGL', color:'#0d6efd', text:'#ffffff' },
     { key:'Beleza na Web', label:'Beleza na Web', short:'BLZ', color:'#7c3aed', text:'#ffffff' }
   ];
+
+  const MARKETPLACE_SALES_FIELDS = [
+    { key:'TikTok', field:'TikTok_Liquido' },
+    { key:'Mercado Livre', field:'Mercado_Livre_Liquido' },
+    { key:'Shopee', field:'Shopee_Liquido' },
+    { key:'SHEIN', field:'SHEIN_Liquido' },
+    { key:'Amazon', field:'Amazon_Pedidas' },
+    { key:'Droga Raia', field:'Droga_Raia_Liquido' },
+    { key:'Magazine Luiza', field:'Magazine_Luiza_Liquido' },
+    { key:'Beleza na Web', field:'Beleza_na_Web_Liquido' }
+  ];
+  let selectedMarketplaces = new Set(MARKETPLACE_SALES_FIELDS.map(m=>m.key));
 
   const $ = id => document.getElementById(id);
   const nf0 = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
@@ -1596,16 +1644,69 @@
     return prefix+shortDbDate(info.date);
   }
 
+  function selectedMarketplaceDefs(){
+    return MARKETPLACE_SALES_FIELDS.filter(m=>selectedMarketplaces.has(m.key));
+  }
+  function isAllMarketplacesSelected(){
+    return selectedMarketplaces.size===MARKETPLACE_SALES_FIELDS.length;
+  }
+  function marketplaceFilterLabel(){
+    if(isAllMarketplacesSelected()) return 'Todas';
+    const defs=selectedMarketplaceDefs();
+    if(!defs.length) return 'Nenhum selecionado';
+    if(defs.length===1) return defs[0].key;
+    return `${defs.length} marketplaces`;
+  }
+  function marketplaceFilterCaption(){
+    if(isAllMarketplacesSelected()) return 'Todos os marketplaces';
+    const defs=selectedMarketplaceDefs();
+    return defs.length ? defs.map(m=>m.key).join(' + ') : 'Nenhum marketplace selecionado';
+  }
+  function selectedMarketplaceTotal(r){
+    return selectedMarketplaceDefs().reduce((sum,m)=>sum+Number(r?.[m.field]||0),0);
+  }
+  function selectedMarketplaceSuggestion(r){
+    return Math.max(0,Math.ceil(selectedMarketplaceTotal(r)*1.15));
+  }
+  function selectedMarketplaceAverage(r){
+    const days=Math.max(1,Number(appState.metrics?.days||1));
+    return selectedMarketplaceTotal(r)/days;
+  }
+  function filteredSummaryByMarketplace(){
+    if(!selectedMarketplaces.size) return [];
+    return appState.summary.filter(r=>selectedMarketplaceTotal(r)>0);
+  }
+  function syncMarketplaceFilterUI(){
+    const root=$('marketplaceFilter');
+    const text=$('marketplaceFilterText');
+    const all=$('marketplaceAll');
+    if(text) text.textContent=marketplaceFilterLabel();
+    if(all) all.checked=isAllMarketplacesSelected();
+    document.querySelectorAll('input[data-market-filter]').forEach(cb=>{ cb.checked=selectedMarketplaces.has(cb.value); });
+    document.querySelectorAll('#summaryTable th[data-marketplace]').forEach(th=>{ th.style.display=selectedMarketplaces.has(th.dataset.marketplace)?'':'none'; });
+    if(root) root.classList.toggle('has-selection',selectedMarketplaces.size>0);
+  }
+  function updateMarketplaceFilteredMetrics(){
+    if(!appState.metrics) return;
+    const rows=filteredSummaryByMarketplace();
+    $('mSkus').textContent=nf0.format(rows.filter(r=>!r.SKU_Pendente).length);
+    $('mNet').textContent=nf0.format(rows.reduce((sum,r)=>sum+selectedMarketplaceTotal(r),0));
+    $('mBuy').textContent=nf0.format(rows.reduce((sum,r)=>sum+selectedMarketplaceSuggestion(r),0));
+    $('summaryCaption').textContent=`${fmtDate(appState.metrics.start)} a ${fmtDate(appState.metrics.end)} • ${marketplaceFilterCaption()}`;
+  }
+  function applyMarketplaceSelection(){
+    syncMarketplaceFilterUI();
+    renderSummary();
+    updateMarketplaceFilteredMetrics();
+  }
+
   function renderSummary() {
     const q=normText($('searchSku').value); const body=$('summaryTable').querySelector('tbody'); body.innerHTML='';
     const sortField=$('sortProducts')?.value||'sales';
     const sortDirection=$('sortDirection')?.value||'az';
-    // A busca e sempre aplicada sobre os dados completos ja carregados para o
-    // periodo. Isso evita que falhas/fallbacks de RPC mostrem itens sem relacao
-    // com o texto digitado e garante o mesmo criterio em 7/15/30 dias.
-    const data=q
-      ? appState.summary.filter(r=>matchesSummarySearch(r,q))
-      : appState.summary.slice();
+    syncMarketplaceFilterUI();
+    let data=filteredSummaryByMarketplace();
+    data=q ? data.filter(r=>matchesSummarySearch(r,q)) : data.slice();
     const compareText=(a,b)=>String(a||'').localeCompare(String(b||''),'pt-BR',{sensitivity:'base',numeric:true});
     if(sortField==='product') {
       if(sortDirection==='za') data.sort((a,b)=>compareText(b.Produto,a.Produto)||compareText(b.Variacao,a.Variacao)||compareText(b.SKU,a.SKU));
@@ -1614,18 +1715,27 @@
       if(sortDirection==='za') data.sort((a,b)=>compareText(b.Variacao,a.Variacao)||compareText(b.Produto,a.Produto)||compareText(b.SKU,a.SKU));
       else data.sort((a,b)=>compareText(a.Variacao,b.Variacao)||compareText(a.Produto,b.Produto)||compareText(a.SKU,b.SKU));
     } else {
-      data.sort((a,b)=>(b.Total_Liquido||0)-(a.Total_Liquido||0)||compareText(a.SKU,b.SKU));
+      data.sort((a,b)=>selectedMarketplaceTotal(b)-selectedMarketplaceTotal(a)||compareText(a.SKU,b.SKU));
     }
     const admin=isAdminUser();
-    if(!data.length){ body.innerHTML=`<tr><td class="empty" colspan="${admin?17:16}">Nenhum SKU encontrado.</td></tr>`; return; }
+    const selectedDefs=selectedMarketplaceDefs();
+    const colspan=8+selectedDefs.length+(admin?1:0);
+    if(!selectedMarketplaces.size){ body.innerHTML=`<tr><td class="empty" colspan="${colspan}">Selecione pelo menos um marketplace.</td></tr>`; return; }
+    if(!data.length){ body.innerHTML=`<tr><td class="empty" colspan="${colspan}">Nenhum SKU com vendas nos marketplaces selecionados.</td></tr>`; return; }
     const frag=document.createDocumentFragment();
     for(const r of data){
       const tr=document.createElement('tr'); if(r.SKU_Pendente)tr.className='pending-row';
+      const total=selectedMarketplaceTotal(r);
+      const suggestion=selectedMarketplaceSuggestion(r);
+      const daily=selectedMarketplaceAverage(r);
       const editCell=admin?`<td>${r.SKU_Pendente?'—':`<button type="button" class="secondary mini edit-name-btn" data-edit-product="${esc(r.SKU)}">${r.NomePadronizado?'Editar padrão':'Padronizar'}</button>`}</td>`:'';
-      tr.innerHTML=`<td class="sku">${esc(r.SKU)}</td><td>${esc(r.Produto)}</td><td>${esc(r.Variacao||'')}</td><td class="num"><strong>${nf2.format(r.Total_Liquido)}</strong></td><td class="num"><strong>${nf0.format(r.Pedido_Sugerido)}</strong></td><td class="num">${nf0.format(Math.round(r.Media_Dia))}</td><td class="num">${r.Estoque===null?'—':nf2.format(r.Estoque)}</td>${marketplaceSummaryCell(r.TikTok_Liquido,r.SKU,'TikTok')}${marketplaceSummaryCell(r.Mercado_Livre_Liquido,r.SKU,'Mercado Livre')}${marketplaceSummaryCell(r.Shopee_Liquido,r.SKU,'Shopee')}${marketplaceSummaryCell(r.SHEIN_Liquido,r.SKU,'SHEIN')}${marketplaceSummaryCell(r.Amazon_Pedidas,r.SKU,'Amazon')}${marketplaceSummaryCell(r.Droga_Raia_Liquido,r.SKU,'Droga Raia')}${marketplaceSummaryCell(r.Magazine_Luiza_Liquido,r.SKU,'Magazine Luiza')}${marketplaceSummaryCell(r.Beleza_na_Web_Liquido,r.SKU,'Beleza na Web')}<td>${r.SKU_Pendente?'<span class="pill warn">SIM</span>':'<span class="pill ok">NÃO</span>'}</td>${editCell}`; frag.appendChild(tr);
+      const marketCells=selectedDefs.map(m=>marketplaceSummaryCell(r[m.field],r.SKU,m.key)).join('');
+      tr.innerHTML=`<td class="sku">${esc(r.SKU)}</td><td>${esc(r.Produto)}</td><td>${esc(r.Variacao||'')}</td><td class="num"><strong>${nf2.format(total)}</strong></td><td class="num"><strong>${nf0.format(suggestion)}</strong></td><td class="num">${nf0.format(Math.round(daily))}</td><td class="num">${r.Estoque===null?'—':nf2.format(r.Estoque)}</td>${marketCells}<td>${r.SKU_Pendente?'<span class="pill warn">SIM</span>':'<span class="pill ok">NÃO</span>'}</td>${editCell}`;
+      frag.appendChild(tr);
     }
     body.appendChild(frag);
   }
+
   function renderPending() {
     const body=$('pendingTable').querySelector('tbody'); body.innerHTML='';
     if(!appState.pending.length){ body.innerHTML='<tr><td class="empty" colspan="8">Nenhuma pendência de SKU encontrada.</td></tr>'; return; }
@@ -1649,15 +1759,33 @@
     body.appendChild(frag);
   }
   function renderAll() {
-    const m=appState.metrics; $('mPeriod').textContent=`${m.days} dias`; $('mSkus').textContent=nf0.format(m.distinctSkus); $('mNet').textContent=nf0.format(m.netUnits); $('mPending').textContent=nf0.format(m.pendingUnits); $('mBuy').textContent=nf0.format(appState.summary.reduce((s,r)=>s+(r.Pedido_Sugerido||0),0));
-    $('summaryCaption').textContent=`${fmtDate(m.start)} a ${fmtDate(m.end)} • ${nf0.format(m.rows)} linhas consideradas`;
-    $('results').style.display='block'; renderSummary(); renderPending();
+    const m=appState.metrics;
+    $('mPeriod').textContent=`${m.days} dias`;
+    $('mPending').textContent=nf0.format(m.pendingUnits);
+    $('results').style.display='block';
+    syncMarketplaceFilterUI();
+    renderSummary();
+    renderPending();
+    updateMarketplaceFilteredMetrics();
   }
 
   function summaryExportRows() {
-    return appState.summary.map(r=>({
-      SKU:r.SKU, Produto:r.Produto, 'Variação':r.Variacao, 'Total':r.Total_Liquido, 'Sugestão':r.Pedido_Sugerido??'', 'Média/dia':Math.round(r.Media_Dia), 'Estoque Atual':r.Estoque??'', 'TikTok':r.TikTok_Liquido, 'Última venda TikTok':exportLastSale(r.SKU,'TikTok'), 'Mercado Livre':r.Mercado_Livre_Liquido, 'Última venda Mercado Livre':exportLastSale(r.SKU,'Mercado Livre'), 'Shopee':r.Shopee_Liquido, 'Última venda Shopee':exportLastSale(r.SKU,'Shopee'), 'SHEIN':r.SHEIN_Liquido, 'Última venda SHEIN':exportLastSale(r.SKU,'SHEIN'), 'Amazon':r.Amazon_Pedidas, 'Última venda Amazon':exportLastSale(r.SKU,'Amazon'), 'Droga Raia':r.Droga_Raia_Liquido, 'Última venda Droga Raia':exportLastSale(r.SKU,'Droga Raia'), 'Magazine Luiza':r.Magazine_Luiza_Liquido, 'Última venda Magazine Luiza':exportLastSale(r.SKU,'Magazine Luiza'), 'Beleza na Web':r.Beleza_na_Web_Liquido, 'Última venda Beleza na Web':exportLastSale(r.SKU,'Beleza na Web'), 'SKU pendente?':r.SKU_Pendente?'SIM':'NÃO'
-    }));
+    const defs=selectedMarketplaceDefs();
+    return filteredSummaryByMarketplace().map(r=>{
+      const row={
+        SKU:r.SKU, Produto:r.Produto, 'Variação':r.Variacao,
+        'Total':selectedMarketplaceTotal(r),
+        'Sugestão':selectedMarketplaceSuggestion(r),
+        'Média/dia':Math.round(selectedMarketplaceAverage(r)),
+        'Estoque Atual':r.Estoque??''
+      };
+      for(const m of defs){
+        row[m.key]=Number(r[m.field]||0);
+        row[`Última venda ${m.key}`]=exportLastSale(r.SKU,m.key);
+      }
+      row['SKU pendente?']=r.SKU_Pendente?'SIM':'NÃO';
+      return row;
+    });
   }
   let lastDownloadUrl=null;
   function showManualDownload(blob,name,label){
@@ -1732,7 +1860,7 @@
     XLSX.utils.book_append_sheet(wb,ws,'Resumo_SKU');
     const wp=XLSX.utils.json_to_sheet(appState.pending.length?appState.pending:[{Informacao:'Nenhuma pendência de SKU encontrada.'}]);
     XLSX.utils.book_append_sheet(wb,wp,'Pendencias_SKU');
-    const wr=XLSX.utils.aoa_to_sheet([['Parâmetro','Valor'],['Início',fmtDate(appState.metrics.start)],['Fim',fmtDate(appState.metrics.end)],['Dias selecionados',appState.metrics.days],['Linhas no período',appState.metrics.rows],['SKUs identificados',appState.metrics.distinctSkus],['Unidades com SKU pendente',appState.metrics.pendingUnits],['Amazon','Vendas calculadas pelo relatório Todos os pedidos usando purchase-date, quantity e status. Business Report é somente conferência e não entra na soma.'],['Droga Raia / Magazine Luiza / Beleza na Web','Cada Item Sku N é processado separadamente; * é removido do SKU; pedidos cancelados não contam.'],['Regra da sugestão','Total considerado no período selecionado × 1,15 (15% adicional). O estoque é apenas informativo.']]);
+    const wr=XLSX.utils.aoa_to_sheet([['Parâmetro','Valor'],['Início',fmtDate(appState.metrics.start)],['Fim',fmtDate(appState.metrics.end)],['Dias selecionados',appState.metrics.days],['Linhas no período',appState.metrics.rows],['SKUs identificados',appState.metrics.distinctSkus],['Unidades com SKU pendente',appState.metrics.pendingUnits],['Amazon','Vendas calculadas pelo relatório Todos os pedidos usando purchase-date, quantity e status. Business Report é somente conferência e não entra na soma.'],['Droga Raia / Magazine Luiza / Beleza na Web','Cada Item Sku N é processado separadamente; * é removido do SKU; pedidos cancelados não contam.'],['Marketplaces exibidos',marketplaceFilterCaption()],['Regra da sugestão','Total considerado dos marketplaces selecionados no período × 1,15 (15% adicional). O estoque é apenas informativo.']]);
     XLSX.utils.book_append_sheet(wb,wr,'Config');
     const bytes=XLSX.write(wb,{bookType:'xlsx',type:'array'});
     const result=await saveBlob(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),'relatorio_vendas_por_sku.xlsx','Excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',['.xlsx']);
@@ -1884,7 +2012,14 @@
     finally{ btn.disabled=false; btn.textContent='Processar e salvar'; }
   }
   function clearFileInputs(){ ['tiktokFile','mlFile','shopeeFiles','sheinFiles','amazonFile','amazonBusinessFile','raiaFiles','magaluFiles','belezaFiles','stockFile'].forEach(id=>$(id).value=''); }
-  function clearAll(){ clearFileInputs(); $('searchSku').value=''; clearStatus(); }
+  function clearAll(){
+    clearFileInputs();
+    $('searchSku').value='';
+    selectedMarketplaces=new Set(MARKETPLACE_SALES_FIELDS.map(m=>m.key));
+    syncMarketplaceFilterUI();
+    clearStatus();
+    if(appState.summary.length){ renderSummary(); updateMarketplaceFilteredMetrics(); }
+  }
 
   function addDaysIso(iso, delta){
     const d=parseDbDate(iso);
@@ -2031,7 +2166,7 @@
       console.info('[Dashboard] periodo',start,'a',end,'SKUs carregados:',summary.length);
       renderAll();
       $('mPending').textContent='…';
-      $('summaryCaption').textContent=`${fmtDate(sDate)} a ${fmtDate(eDate)} • dados salvos no Supabase`;
+      updateMarketplaceFilteredMetrics();
       if(showStatus)setStatus(`Dashboard atualizado: ${nf0.format(appState.metrics.netUnits)} unidades consideradas e ${nf0.format(summary.reduce((s,r)=>s+r.Pedido_Sugerido,0))} sugeridas para compra.`,'ok');
 
       // Ultimas vendas carregam em segundo plano e nunca bloqueiam o resumo principal.
@@ -2150,6 +2285,29 @@
   $('dashboardStartDate').addEventListener('change',()=>{ setCustomDashboardPeriod(); refreshDashboard(true); });
   $('dashboardEndDate').addEventListener('change',()=>{ setCustomDashboardPeriod(); refreshDashboard(true); });
   $('stockFile').addEventListener('change',()=>refreshDashboard(true));
+
+  $('marketplaceFilterBtn').addEventListener('click',e=>{
+    e.stopPropagation();
+    const root=$('marketplaceFilter');
+    const open=!root.classList.contains('open');
+    root.classList.toggle('open',open);
+    $('marketplaceFilterBtn').setAttribute('aria-expanded',open?'true':'false');
+  });
+  $('marketplaceFilterMenu').addEventListener('click',e=>e.stopPropagation());
+  $('marketplaceAll').addEventListener('change',e=>{
+    selectedMarketplaces=e.target.checked ? new Set(MARKETPLACE_SALES_FIELDS.map(m=>m.key)) : new Set();
+    applyMarketplaceSelection();
+  });
+  document.querySelectorAll('input[data-market-filter]').forEach(cb=>cb.addEventListener('change',()=>{
+    if(cb.checked) selectedMarketplaces.add(cb.value);
+    else selectedMarketplaces.delete(cb.value);
+    applyMarketplaceSelection();
+  }));
+  document.addEventListener('click',()=>{
+    const root=$('marketplaceFilter');
+    if(root?.classList.contains('open')){ root.classList.remove('open'); $('marketplaceFilterBtn').setAttribute('aria-expanded','false'); }
+  });
+
   $('searchSku').addEventListener('input',()=>{
     // O resumo completo do periodo ja esta em memoria; pesquisar nao precisa
     // consultar novamente o Supabase.
