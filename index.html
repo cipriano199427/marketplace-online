@@ -761,35 +761,50 @@
     if(isNaN(d)) return '-';
     return d.toLocaleString('pt-BR',{ dateStyle:'short', timeStyle:'short' });
   }
+  function isLastCheckedSchemaError(error){
+    const msg=String(error?.message||error?.details||error?.hint||error||'').toLowerCase();
+    return msg.includes('last_checked_at') || msg.includes('schema cache');
+  }
   async function loadMarketplaceUpdates(){
     const grid=$('updatesGrid');
     const ref=$('updatesReference');
     if(!grid || !ref || !currentUser) return;
     grid.innerHTML='<div class="empty" style="grid-column:1 / -1; padding:18px;">Carregando status...</div>';
     ref.textContent='Carregando status das planilhas...';
-    const {data,error}=await db.from('imports').select('marketplace,created_at,last_checked_at').order('last_checked_at',{ascending:false}).limit(500);
+
+    let data=null, error=null, compatibilityMode=false;
+    ({data,error}=await db.from('imports').select('marketplace,created_at,last_checked_at').order('last_checked_at',{ascending:false}).limit(500));
+    if(error && isLastCheckedSchemaError(error)){
+      console.warn('last_checked_at ainda não disponível; usando created_at no painel de status.',error);
+      compatibilityMode=true;
+      ({data,error}=await db.from('imports').select('marketplace,created_at').order('created_at',{ascending:false}).limit(500));
+    }
     if(error){
       console.error(error);
       ref.textContent='Não foi possível carregar o status das planilhas.';
       grid.innerHTML='<div class="empty" style="grid-column:1 / -1; padding:18px;">Erro ao carregar status.</div>';
       return;
     }
+
     const latestByMarket = new Map();
     let latestGlobal = null;
     for(const row of (data||[])){
-      const checked = new Date(row.last_checked_at || row.created_at);
+      const checked = new Date((!compatibilityMode && row.last_checked_at) || row.created_at);
       if(isNaN(checked)) continue;
       if(!latestGlobal || checked > latestGlobal) latestGlobal = checked;
       if(!latestByMarket.has(row.marketplace)) latestByMarket.set(row.marketplace, checked);
     }
-    ref.textContent = latestGlobal ? `Última verificação geral: ${formatDateTime(latestGlobal)}` : 'Nenhuma importação salva ainda.';
+    ref.textContent = latestGlobal
+      ? `${compatibilityMode?'Última importação geral':'Última verificação geral'}: ${formatDateTime(latestGlobal)}${compatibilityMode?' • modo compatibilidade':''}`
+      : 'Nenhuma importação salva ainda.';
     const frag=document.createDocumentFragment();
     for(const item of MARKETPLACE_UPDATE_CONFIG){
       const updatedAt = latestByMarket.get(item.key) || null;
       const ok = !!(updatedAt && latestGlobal && sameCalendarDay(updatedAt, latestGlobal));
       const wrap=document.createElement('div');
       wrap.className=`market-update ${ok ? 'ok' : 'stale'}`;
-      wrap.innerHTML=`<div class="market-left"><div class="market-logo" style="background:${item.color};color:${item.text};">${esc(item.short)}</div><div class="market-meta"><div class="market-name">${esc(item.label)}</div><div class="market-date">${updatedAt ? `Atualizado/conferido em ${esc(formatDateTime(updatedAt))}` : 'Sem planilha importada'}</div></div></div><div class="market-status ${ok ? 'ok' : 'stale'}" title="${ok ? 'Conferido no mesmo dia da última verificação geral' : 'Ainda não conferido no mesmo dia da última verificação geral'}">${ok ? '✓' : '✕'}</div>`;
+      const actionText=compatibilityMode?'Importado em':'Atualizado/conferido em';
+      wrap.innerHTML=`<div class="market-left"><div class="market-logo" style="background:${item.color};color:${item.text};">${esc(item.short)}</div><div class="market-meta"><div class="market-name">${esc(item.label)}</div><div class="market-date">${updatedAt ? `${actionText} ${esc(formatDateTime(updatedAt))}` : 'Sem planilha importada'}</div></div></div><div class="market-status ${ok ? 'ok' : 'stale'}" title="${ok ? 'Atualizado no mesmo dia da referência geral' : 'Ainda não atualizado no mesmo dia da referência geral'}">${ok ? '✓' : '✕'}</div>`;
       frag.appendChild(wrap);
     }
     grid.innerHTML='';
@@ -1975,21 +1990,30 @@
     if(!period.start||!period.end) throw new Error(`${marketplace}: não foi possível determinar o período do arquivo ${file.name}.`);
     const hash=await fileHash(file);
     const checkedAt=new Date().toISOString();
-    const {data:existing,error:checkError}=await db.from('imports').select('id,file_name,period_start,period_end,last_checked_at').eq('marketplace',marketplace).eq('file_hash',hash).maybeSingle();
+    let existing=null, checkError=null, supportsLastChecked=true;
+    ({data:existing,error:checkError}=await db.from('imports').select('id,file_name,period_start,period_end,last_checked_at').eq('marketplace',marketplace).eq('file_hash',hash).maybeSingle());
+    if(checkError && isLastCheckedSchemaError(checkError)){
+      supportsLastChecked=false;
+      ({data:existing,error:checkError}=await db.from('imports').select('id,file_name,period_start,period_end').eq('marketplace',marketplace).eq('file_hash',hash).maybeSingle());
+    }
     if(checkError) throw checkError;
     if(existing){
       // O Business Report da Amazon nao possui data por pedido. Se o mesmo arquivo
       // ja foi salvo com um periodo incorreto, permitir corrigir somente o periodo
       // sem duplicar as linhas de sales_items nem reenviar o arquivo ao Storage.
       if(marketplace==='Amazon' && rows.some(r=>r.aggregate_period) && (existing.period_start!==period.start || existing.period_end!==period.end)){
-        const {error:updateError}=await db.from('imports').update({period_start:period.start,period_end:period.end,last_checked_at:checkedAt}).eq('id',existing.id);
+        let updatePayload={period_start:period.start,period_end:period.end};
+        if(supportsLastChecked) updatePayload.last_checked_at=checkedAt;
+        const {error:updateError}=await db.from('imports').update(updatePayload).eq('id',existing.id);
         if(updateError) throw updateError;
         return {skipped:false,name:file.name,rows:0,units:0,periodUpdated:true,periodStart:period.start,periodEnd:period.end,checked:true};
       }
       // Arquivo ja existe: nao duplica vendas, mas registra que o marketplace foi
       // conferido novamente agora. Isso alimenta o painel de status das planilhas.
-      const {error:touchError}=await db.from('imports').update({last_checked_at:checkedAt}).eq('id',existing.id);
-      if(touchError) throw touchError;
+      if(supportsLastChecked){
+        const {error:touchError}=await db.from('imports').update({last_checked_at:checkedAt}).eq('id',existing.id);
+        if(touchError && !isLastCheckedSchemaError(touchError)) throw touchError;
+      }
       return {skipped:true,name:file.name,checked:true};
     }
     const path=`${marketSlug(marketplace)}/${currentUser.id}/${hash.slice(0,16)}_${safeFileName(file.name)}`;
@@ -1998,7 +2022,14 @@
     let importId=null;
     try {
       const units=rows.reduce((s,r)=>s+Number(r.units_net||0),0);
-      const {data:imp,error:impError}=await db.from('imports').insert({marketplace,file_name:file.name,file_hash:hash,storage_path:path,period_start:period.start,period_end:period.end,row_count:rows.length,unit_count:units,created_by:currentUser.id,last_checked_at:checkedAt}).select('id').single();
+      let insertPayload={marketplace,file_name:file.name,file_hash:hash,storage_path:path,period_start:period.start,period_end:period.end,row_count:rows.length,unit_count:units,created_by:currentUser.id};
+      if(supportsLastChecked) insertPayload.last_checked_at=checkedAt;
+      let {data:imp,error:impError}=await db.from('imports').insert(insertPayload).select('id').single();
+      if(impError && supportsLastChecked && isLastCheckedSchemaError(impError)){
+        supportsLastChecked=false;
+        delete insertPayload.last_checked_at;
+        ({data:imp,error:impError}=await db.from('imports').insert(insertPayload).select('id').single());
+      }
       if(impError) throw impError;
       importId=imp.id;
       await insertChunks(rows.map(r=>toDbRow(r,importId)));
