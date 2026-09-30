@@ -711,12 +711,25 @@
   }
   function parseMLDate(v) {
     const d = excelDateToJS(v); if (d) return d;
-    const s = normText(v);
-    const m = s.match(/(\d{1,2}) de ([a-z]+) de (\d{4}) (\d{1,2}):(\d{2})/);
-    if (!m) return null;
-    const mon = PT_MONTHS[m[2]];
-    if (!mon) return null;
-    return new Date(Number(m[3]), mon-1, Number(m[1]), Number(m[4]), Number(m[5]));
+    const raw=String(v??'').trim();
+    if(!raw) return null;
+    const s = normText(raw);
+
+    // Formato tradicional do relatorio: 30 de setembro de 2026 09:13
+    let m = s.match(/(\d{1,2}) de ([a-z]+) de (\d{4})(?:[, ]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if (m) {
+      const mon = PT_MONTHS[m[2]];
+      if (mon) return new Date(Number(m[3]), mon-1, Number(m[1]), Number(m[4]||0), Number(m[5]||0), Number(m[6]||0));
+    }
+
+    // Algumas versoes novas exportam a data numerica.
+    m = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if(m) return new Date(Number(m[3]),Number(m[2])-1,Number(m[1]),Number(m[4]||0),Number(m[5]||0),Number(m[6]||0));
+
+    // Tambem aceitamos ISO, caso o Mercado Livre altere novamente a exportacao.
+    m = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if(m) return new Date(Number(m[1]),Number(m[2])-1,Number(m[3]),Number(m[4]||0),Number(m[5]||0),Number(m[6]||0));
+    return null;
   }
   function parseSheinDate(v) {
     const d = excelDateToJS(v); if (d) return d;
@@ -1044,15 +1057,48 @@
 
   async function parseMercadoLivre(file) {
     const wb=await readWorkbook(file); const rows=sheetRows(wb,'Vendas BR');
-    let headerIndex=-1, headers=[];
-    for(let r=0;r<Math.min(rows.length,12);r++) { const vals=rows[r].map(v=>String(v??'').trim()); if(vals.includes('N.º de venda')&&vals.includes('SKU')) { headerIndex=r; headers=vals; break; } }
-    if(headerIndex<0) throw new Error('Não encontrei o cabeçalho esperado no relatório do Mercado Livre.');
-    const firstIndex = name => { const i=headers.indexOf(name); if(i<0) throw new Error(`Mercado Livre: coluna ausente: ${name}`); return i; };
-    const iSale=firstIndex('N.º de venda'), iDate=firstIndex('Data da venda'), iState=firstIndex('Estado'), iUnits=firstIndex('Unidades'), iSku=firstIndex('SKU'), iListing=firstIndex('# de anúncio'), iTitle=firstIndex('Título do anúncio'), iVariation=firstIndex('Variação'), iResult=headers.indexOf('Resultado');
+    const normHeader=v=>normText(v).replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
+    const findCol=(headers,aliases,predicate=null)=>{
+      const normalized=headers.map(normHeader);
+      for(const alias of aliases){ const i=normalized.indexOf(normHeader(alias)); if(i>=0) return i; }
+      if(predicate){ const i=normalized.findIndex(predicate); if(i>=0) return i; }
+      return -1;
+    };
+    const resolveColumns=headers=>({
+      sale:findCol(headers,['N.º de venda','Nº de venda','Número de venda','Numero da venda','ID da venda'],h=>h.includes('venda')&&(h.includes('numero')||h.startsWith('n de ')||h.startsWith('id '))),
+      date:findCol(headers,['Data da venda','Data de venda','Data e hora da venda','Data/hora da venda'],h=>h.includes('data')&&h.includes('venda')),
+      state:findCol(headers,['Estado','Estado da venda','Status','Status da venda'],h=>h==='estado'||h==='status'||((h.includes('estado')||h.includes('status'))&&h.includes('venda'))),
+      units:findCol(headers,['Unidades','Quantidade','Quantidade de unidades','Unidades vendidas'],h=>h==='unidades'||h==='quantidade'||(h.includes('unidades')&&(h.includes('vend')||h.includes('quant')))),
+      sku:findCol(headers,['SKU','SKU do vendedor','SKU vendedor'],h=>h==='sku'||h.startsWith('sku ')),
+      listing:findCol(headers,['# de anúncio','N.º de anúncio','Nº de anúncio','Número do anúncio','ID do anúncio'],h=>h.includes('anuncio')&&(h.includes('numero')||h.startsWith('n de ')||h.startsWith('id '))),
+      title:findCol(headers,['Título do anúncio','Titulo do anuncio','Título da publicação','Titulo da publicacao'],h=>h.includes('titulo')&&(h.includes('anuncio')||h.includes('publicacao'))),
+      variation:findCol(headers,['Variação','Variacao','Variação do anúncio','Variacao do anuncio'],h=>h.startsWith('variacao')),
+      result:findCol(headers,['Resultado','Resultado da devolução','Resultado da devolucao'],h=>h.startsWith('resultado'))
+    });
+
+    let headerIndex=-1, headers=[], cols=null;
+    for(let r=0;r<Math.min(rows.length,30);r++) {
+      const vals=rows[r].map(v=>String(v??'').trim());
+      const candidate=resolveColumns(vals);
+      // Data + venda + SKU identificam com seguranca o cabecalho do relatorio.
+      if(candidate.sale>=0 && candidate.date>=0 && candidate.sku>=0){ headerIndex=r; headers=vals; cols=candidate; break; }
+    }
+    if(headerIndex<0) throw new Error('Mercado Livre: não encontrei o cabeçalho de vendas. O sistema procurou número da venda, data da venda e SKU nas primeiras 30 linhas.');
+
+    const required=[['número da venda','sale'],['data da venda','date'],['estado/status','state'],['unidades','units'],['SKU','sku'],['número do anúncio','listing'],['título do anúncio','title'],['variação','variation']];
+    const missing=required.filter(([,key])=>cols[key]<0).map(([label])=>label);
+    if(missing.length){
+      const detected=headers.filter(Boolean).join(' | ');
+      throw new Error(`Mercado Livre: não consegui localizar: ${missing.join(', ')}. Colunas encontradas: ${detected}`);
+    }
+    const iSale=cols.sale, iDate=cols.date, iState=cols.state, iUnits=cols.units, iSku=cols.sku, iListing=cols.listing, iTitle=cols.title, iVariation=cols.variation, iResult=cols.result;
     const out=[];
+    let invalidDates=0;
     for(const vals of rows.slice(headerIndex+1)) {
       if(!vals || vals[iSale]==='') continue;
       const qty=asNumber(vals[iUnits]); if(qty<=0) continue;
+      const date=parseMLDate(vals[iDate]);
+      if(!date){ invalidDates++; continue; }
       const state=String(vals[iState]??'').trim(), st=normText(state), invalid=st.includes('cancel'), sold=invalid?0:qty;
       const result=iResult>=0?String(vals[iResult]??'').trim():'', rt=normText(result);
       let returnedToStock=false;
@@ -1060,8 +1106,9 @@
       const returned=returnedToStock?qty:0; const pending=(!invalid&&returned===0&&(st.includes('devolucao')||st.includes('devolvido')))?qty:0;
       const sku0=normSku(vals[iSku]), listing=normSku(vals[iListing]); const placeholder=`SEM_SKU_ML::${listing||String(vals[iSale]).trim()}`;
       const product=String(vals[iTitle]??'').trim(); const variation=String(vals[iVariation]??'').trim();
-      out.push({ marketplace:'Mercado Livre', order_id:String(vals[iSale]??'').trim(), date:parseMLDate(vals[iDate]), sku:sku0||placeholder, sku_original:sku0, product, variation, listing_id:listing, status:state, return_status:result, units_original:qty, units_cancelled:invalid?qty:0, units_sold:sold, units_returned:returned, units_return_pending:pending, units_net:Math.max(0,sold-returned), sku_pending:!sku0 });
+      out.push({ marketplace:'Mercado Livre', order_id:String(vals[iSale]??'').trim(), date, sku:sku0||placeholder, sku_original:sku0, product, variation, listing_id:listing, status:state, return_status:result, units_original:qty, units_cancelled:invalid?qty:0, units_sold:sold, units_returned:returned, units_return_pending:pending, units_net:Math.max(0,sold-returned), sku_pending:!sku0 });
     }
+    if(!out.length && invalidDates>0) throw new Error(`Mercado Livre: encontrei a coluna de data, mas não consegui interpretar ${invalidDates} data(s) do relatório.`);
     return out;
   }
 
